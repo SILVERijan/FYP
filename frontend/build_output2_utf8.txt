@@ -1,0 +1,69 @@
+﻿Building Windows application...                                 
+flutter : Nuget.exe not 
+found, trying to download 
+or use cached version.
+At line:1 char:37
++ ... P\pub_cache" ; 
+flutter build windows > 
+build_output2.txt 2>&1 ; 
+Get-C ...
++                    ~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (Nug  
+  et.exe not f...cached    
+ version.:String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+lib/screens/map_tracking_sc
+reen.dart(4,8): error 
+GFAA2A68C: Error when 
+reading '../pub_cache/hoste
+d/pub.dev/latlong2-0.9.1/li
+b/latlong2.dart': The 
+system cannot find the 
+file specified [D:\FYP\fron
+tend\build\windows\x64\flut
+ter\flutter_assemble.vcxpro
+j]
+lib/screens/map_tracking_sc
+reen.dart(60,26): error 
+GE5CFE876: The method 
+'LatLng' isn't defined for 
+the type 
+'_MapTrackingScreenState'. 
+[D:\FYP\frontend\build\wind
+ows\x64\flutter\flutter_ass
+emble.vcxproj]
+lib/screens/map_tracking_sc
+reen.dart(71,24): error 
+GE5CFE876: The method 
+'LatLng' isn't defined for 
+the type 
+'_MapTrackingScreenState'. 
+[D:\FYP\frontend\build\wind
+ows\x64\flutter\flutter_ass
+emble.vcxproj]
+C:\Program Files 
+(x86)\Microsoft Visual Stud
+io\2022\BuildTools\MSBuild\
+Microsoft\VC\v170\Microsoft
+.CppCommon.targets(254,5): 
+error MSB8066: Custom 
+build for 'D:\FYP\frontend\
+build\windows\x64\CMakeFile
+s\24ecfcccd2223dcc84e2a90ae
+8d4b573\flutter_windows.dll
+.rule;D:\FYP\frontend\build
+\windows\x64\CMakeFiles\d05
+8069d904b79bd7818b84b87d6e5
+87\flutter_assemble.rule' 
+exited with code 1. [D:\FYP
+\frontend\build\windows\x64
+\flutter\flutter_assemble.v
+cxproj]
+Building Windows application...                                    15.9s
+Build process failed.

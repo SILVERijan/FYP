@@ -1,0 +1,327 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import '../models/transport_route.dart';
+import '../models/vehicle.dart';
+import '../api_service.dart';
+
+class MapTrackingScreen extends StatefulWidget {
+  final TransportRoute? route;
+  const MapTrackingScreen({super.key, this.route});
+
+  @override
+  State<MapTrackingScreen> createState() => _MapTrackingScreenState();
+}
+
+class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTickerProviderStateMixin {
+  final ApiService _apiService = ApiService();
+  List<Vehicle> _vehicles = [];
+  Timer? _timer;
+  final MapController _mapController = MapController();
+  late AnimationController _pulseController;
+  DateTime _lastUpdated = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    
+    _fetchVehicles();
+    // Poll for vehicle locations every 5 seconds
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchVehicles());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchVehicles() async {
+    try {
+      final vehicles = await _apiService.getVehicles();
+      setState(() {
+        if (widget.route != null) {
+          _vehicles = vehicles.where((v) => v.route?.id == widget.route!.id).toList();
+        } else {
+          _vehicles = vehicles;
+        }
+        _lastUpdated = DateTime.now();
+      });
+    } catch (e) {
+      debugPrint('Error fetching vehicles: $e');
+    }
+  }
+
+  void _centerMap() {
+    if (_vehicles.isNotEmpty) {
+      _mapController.move(LatLng(_vehicles.first.latitude, _vehicles.first.longitude), 14.0);
+    } else {
+       _mapController.move(LatLng(27.7000, 85.3000), 13.0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Theme colors
+    const Color brandRed = Color(0xFFE50914);
+    const Color bgWhite = Color(0xFFF5F5F5);
+    const Color surfaceWhite = Colors.white;
+
+    return Scaffold(
+      backgroundColor: bgWhite,
+      body: Stack(
+        children: [
+          // The Map Layer
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: LatLng(27.7000, 85.3000), // Kathmandu
+              initialZoom: 13.0,
+            ),
+            children: [
+              // Using standard OSM tiles for a clean white/light look
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.frontend',
+              ),
+              MarkerLayer(
+                markers: _vehicles.map((v) {
+                  return Marker(
+                    point: LatLng(v.latitude, v.longitude),
+                    width: 70,
+                    height: 70,
+                    child: _buildAnimatedMarker(v, brandRed),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+
+          // Top Floating Header
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 16,
+            right: 16,
+            child: _buildFloatingHeader(context, surfaceWhite),
+          ),
+
+          // Floating Controls (My Location)
+          Positioned(
+            right: 16,
+            bottom: 240, // Above bottom sheet
+            child: FloatingActionButton(
+              backgroundColor: surfaceWhite,
+              foregroundColor: Colors.black87,
+              elevation: 4,
+              heroTag: 'centerMap',
+              onPressed: _centerMap,
+              child: const Icon(Icons.my_location),
+            ),
+          ),
+
+          // Bottom Sheet Panel
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomPanel(surfaceWhite, brandRed),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedMarker(Vehicle vehicle, Color brandRed) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Plate Number Badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: brandRed, width: 1.5),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0,2))],
+          ),
+          child: Text(
+            vehicle.plateNumber,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black87),
+          ),
+        ),
+        const SizedBox(height: 4),
+        // Pulsing Dot
+        AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, child) {
+            return Container(
+              width: 24 + (_pulseController.value * 8),
+              height: 24 + (_pulseController.value * 8),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: brandRed.withOpacity(0.3 + (_pulseController.value * 0.4)),
+                border: Border.all(color: brandRed, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: brandRed.withOpacity(0.5 * _pulseController.value),
+                    blurRadius: 10,
+                    spreadRadius: 5 * _pulseController.value,
+                  )
+                ]
+              ),
+              child: const Center(
+                child: Icon(Icons.directions_bus, color: Colors.white, size: 14),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFloatingHeader(BuildContext context, Color surfaceWhite) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: surfaceWhite.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          if (widget.route != null)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          else
+            const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              widget.route?.name ?? "All Vehicles",
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.map_outlined, color: Colors.black87, size: 20),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomPanel(Color surfaceWhite, Color brandRed) {
+    return Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: surfaceWhite,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
+        ),
+        child: Column(
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Live Status",
+                        style: TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "${_vehicles.length} Vehicles Active",
+                        style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: brandRed.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: brandRed.withOpacity(0.5))
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8, height: 8,
+                          decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('Updated ${timeago.format(_lastUpdated, locale: 'en_short')}', style: TextStyle(color: brandRed, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+            const Divider(color: Colors.black12, height: 24),
+            // Vehicle List
+            Expanded(
+              child: _vehicles.isEmpty 
+              ? const Center(child: Text("No vehicles currently on this route", style: TextStyle(color: Colors.black54)))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _vehicles.length,
+                  itemBuilder: (context, index) {
+                    final v = _vehicles[index];
+                    return ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.directions_bus, color: brandRed, size: 20),
+                      ),
+                      title: Text(v.plateNumber, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                      subtitle: const Text("Tracking En Route", style: TextStyle(color: Colors.black54, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right, color: Colors.black26),
+                      onTap: () {
+                         _mapController.move(LatLng(v.latitude, v.longitude), 16.0);
+                      },
+                    );
+                  },
+                )
+            ),
+          ],
+        )
+    );
+  }
+}
