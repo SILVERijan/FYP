@@ -34,40 +34,60 @@ class ApiService {
     await prefs.remove('user_data');
   }
 
-  Future<bool> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/login'),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
 
-    if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      await saveToken(data['access_token']);
+      if (response.statusCode == 200) {
+        await saveToken(data['access_token']);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_data', jsonEncode(data['user']));
+        return {'success': true, 'message': 'Login successful'};
+      }
       
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_data', jsonEncode(data['user']));
-      return true;
+      String message = 'Login failed';
+      if (data['message'] != null) message = data['message'];
+      if (data['errors'] != null) {
+        final errors = data['errors'] as Map<String, dynamic>;
+        message = errors.values.first[0];
+      }
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
     }
-    return false;
   }
 
-  Future<bool> register(String name, String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/register'),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-      body: jsonEncode({'name': name, 'email': email, 'password': password}),
-    );
+  Future<Map<String, dynamic>> register(String name, String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/register'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({'name': name, 'email': email, 'password': password}),
+      );
 
-    if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
-      await saveToken(data['access_token']);
-      
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_data', jsonEncode(data['user']));
-      return true;
+      if (response.statusCode == 201) {
+        await saveToken(data['access_token']);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_data', jsonEncode(data['user']));
+        return {'success': true, 'message': 'Registration successful'};
+      }
+
+      String message = 'Registration failed';
+      if (data['message'] != null) message = data['message'];
+      if (data['errors'] != null) {
+        final errors = data['errors'] as Map<String, dynamic>;
+        message = errors.values.first[0];
+      }
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
     }
-    return false;
   }
 
   Future<User?> getCurrentUser() async {

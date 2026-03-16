@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/transport_route.dart';
 import '../api_service.dart';
 import 'map_tracking_screen.dart';
+import 'package:frontend/widgets/app_drawer.dart';
+import 'package:frontend/screens/main_screen.dart';
 
 class RouteListingScreen extends StatefulWidget {
-  const RouteListingScreen({super.key});
+  final bool showAppBar;
+  const RouteListingScreen({super.key, this.showAppBar = true});
 
   @override
   State<RouteListingScreen> createState() => _RouteListingScreenState();
@@ -23,11 +26,20 @@ class _RouteListingScreenState extends State<RouteListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('Transport Routes'),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-      ),
+      ) : null,
+      drawer: widget.showAppBar ? AppDrawer(
+        selectedIndex: 1,
+        onItemSelected: (index) {
+          if (index != 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MainScreen()),
+            );
+          }
+        },
+      ) : null,
       body: FutureBuilder<List<TransportRoute>>(
         future: _routesFuture,
         builder: (context, snapshot) {
@@ -49,7 +61,7 @@ class _RouteListingScreenState extends State<RouteListingScreen> {
                 elevation: 4,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
-                  leading: const Icon(Icons.directions_bus, color: Colors.deepPurple, size: 32),
+                  leading: Icon(Icons.directions_bus, color: Theme.of(context).colorScheme.primary, size: 32),
                   title: Text(route.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(route.type),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),

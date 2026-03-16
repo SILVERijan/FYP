@@ -6,10 +6,13 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../models/transport_route.dart';
 import '../models/vehicle.dart';
 import '../api_service.dart';
+import 'package:frontend/widgets/app_drawer.dart';
+import 'package:frontend/screens/main_screen.dart';
 
 class MapTrackingScreen extends StatefulWidget {
   final TransportRoute? route;
-  const MapTrackingScreen({super.key, this.route});
+  final bool showAppBar;
+  const MapTrackingScreen({super.key, this.route, this.showAppBar = true});
 
   @override
   State<MapTrackingScreen> createState() => _MapTrackingScreenState();
@@ -69,13 +72,27 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    // Theme colors
-    const Color brandRed = Color(0xFFE50914);
+    final theme = Theme.of(context);
+    final brandRed = theme.colorScheme.primary;
     const Color bgWhite = Color(0xFFF5F5F5);
-    const Color surfaceWhite = Colors.white;
+    final surfaceWhite = theme.colorScheme.surface;
 
     return Scaffold(
       backgroundColor: bgWhite,
+      appBar: widget.showAppBar ? AppBar(
+        title: Text(widget.route?.name ?? "All Vehicles"),
+      ) : null,
+      drawer: widget.showAppBar ? AppDrawer(
+        selectedIndex: 0,
+        onItemSelected: (index) {
+          if (index != 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MainScreen()),
+            );
+          }
+        },
+      ) : null,
       body: Stack(
         children: [
           // The Map Layer
@@ -86,7 +103,6 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
               initialZoom: 13.0,
             ),
             children: [
-              // Using standard OSM tiles for a clean white/light look
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.frontend',
@@ -104,13 +120,14 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
             ],
           ),
 
-          // Top Floating Header
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            right: 16,
-            child: _buildFloatingHeader(context, surfaceWhite),
-          ),
+          // Top Floating Header - Only show if NO AppBar
+          if (!widget.showAppBar)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 16,
+              left: 16,
+              right: 16,
+              child: _buildFloatingHeader(context, surfaceWhite),
+            ),
 
           // Floating Controls (My Location)
           Positioned(
