@@ -40,7 +40,8 @@ class _RouteListingScreenState extends State<RouteListingScreen> {
           }
         },
       ) : null,
-      body: FutureBuilder<List<TransportRoute>>(
+      body: SafeArea(
+        child: FutureBuilder<List<TransportRoute>>(
         future: _routesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -79,6 +80,7 @@ class _RouteListingScreenState extends State<RouteListingScreen> {
           );
         },
       ),
+    ),
     );
   }
 }

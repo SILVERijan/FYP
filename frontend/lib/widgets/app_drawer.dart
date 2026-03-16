@@ -15,34 +15,39 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ApiService apiService = ApiService();
+    final theme = Theme.of(context);
 
     return Drawer(
       child: Column(
         children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              color: Colors.red,
+          UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [theme.colorScheme.primary, Colors.red[800]!],
+              ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.directions_bus, color: Colors.white, size: 40),
-                const SizedBox(width: 16),
-                const Text(
-                  'TravelNepal+',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            accountName: const Text(
+              'Samaya Sawari',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            accountEmail: const Text('Public Transport Tracking'),
+            currentAccountPicture: const CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(Icons.directions_bus, color: Colors.red, size: 30),
             ),
           ),
           ListTile(
             leading: const Icon(Icons.map),
             title: const Text('Map Tracking'),
             selected: selectedIndex == 0,
-            selectedColor: Colors.red,
+            selectedColor: theme.colorScheme.primary,
+            iconColor: Colors.black87,
+            textColor: Colors.black87,
             onTap: () {
               Navigator.pop(context); // Close drawer
               onItemSelected(0);
@@ -52,7 +57,9 @@ class AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.directions_bus),
             title: const Text('Routes'),
             selected: selectedIndex == 1,
-            selectedColor: Colors.red,
+            selectedColor: theme.colorScheme.primary,
+            iconColor: Colors.black87,
+            textColor: Colors.black87,
             onTap: () {
               Navigator.pop(context); // Close drawer
               onItemSelected(1);
@@ -62,7 +69,9 @@ class AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.person),
             title: const Text('Profile'),
             selected: selectedIndex == 2,
-            selectedColor: Colors.red,
+            selectedColor: theme.colorScheme.primary,
+            iconColor: Colors.black87,
+            textColor: Colors.black87,
             onTap: () {
               Navigator.pop(context); // Close drawer
               onItemSelected(2);

@@ -47,9 +47,10 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         title: const Text('Login'),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const Icon(Icons.directions_bus, size: 100, color: Colors.red),
               const SizedBox(height: 16),
               const Text(
-                'TravelNepal+',
+                'Samaya Sawari',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 28,
@@ -122,6 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
