@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/api_service.dart';
+import 'package:frontend/models/user.dart';
 import 'package:frontend/screens/login_screen.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -18,29 +19,38 @@ class AppDrawer extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Drawer(
-      child: Column(
-        children: [
-          UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [theme.colorScheme.primary, Colors.red[800]!],
+      child: FutureBuilder<User?>(
+        future: apiService.getCurrentUser(),
+        builder: (context, snapshot) {
+          final user = snapshot.data;
+          return Column(
+            children: [
+              UserAccountsDrawerHeader(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [theme.colorScheme.primary, Colors.red[800]!],
+                  ),
+                ),
+                accountName: Text(
+                  user?.name ?? 'Samaya Sawari',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                accountEmail: Text(user?.email ?? 'Public Transport Tracking'),
+                currentAccountPicture: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  backgroundImage: user?.profile_picture != null
+                      ? NetworkImage(apiService.getProfileImageUrl(user!.profile_picture))
+                      : null,
+                  child: user?.profile_picture == null
+                      ? const Icon(Icons.person, color: Colors.red, size: 30)
+                      : null,
+                ),
               ),
-            ),
-            accountName: const Text(
-              'Samaya Sawari',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            accountEmail: const Text('Public Transport Tracking'),
-            currentAccountPicture: const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.directions_bus, color: Colors.red, size: 30),
-            ),
-          ),
           ListTile(
             leading: const Icon(Icons.map),
             title: const Text('Map Tracking'),
@@ -93,8 +103,10 @@ class AppDrawer extends StatelessWidget {
               }
             },
           ),
-          const SizedBox(height: 20),
-        ],
+              const SizedBox(height: 20),
+            ],
+          );
+        },
       ),
     );
   }

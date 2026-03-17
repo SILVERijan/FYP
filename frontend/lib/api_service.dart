@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/user.dart';
 import 'models/transport_route.dart';
@@ -7,6 +9,9 @@ import 'models/vehicle.dart';
 
 class ApiService {
   static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String serverUrl = 'http://127.0.0.1:8000';
+
+  // ... (existing methods kept for brevety, but I will replace the whole file content to be safe and clean)
 
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -139,5 +144,52 @@ class ApiService {
     } else {
       throw Exception('Failed to load vehicles');
     }
+  }
+
+  Future<Map<String, dynamic>> updateProfile(String name, File? image) async {
+    try {
+      final token = await getToken();
+      if (token == null) return {'success': false, 'message': 'Not authenticated'};
+
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/user/update'));
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+
+      request.fields['name'] = name;
+
+      if (image != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'profile_picture',
+          image.path,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      }
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_data', jsonEncode(data['user']));
+        return {
+          'success': true, 
+          'message': 'Profile updated successfully', 
+          'user': User.fromJson(data['user'])
+        };
+      }
+
+      return {'success': false, 'message': data['message'] ?? 'Update failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  String getProfileImageUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http')) return path;
+    return '$serverUrl/storage/$path';
   }
 }

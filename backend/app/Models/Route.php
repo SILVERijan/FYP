@@ -9,7 +9,7 @@ class Route extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'type'];
+    protected $fillable = ['name', 'type', 'polyline'];
 
     public function vehicles()
     {

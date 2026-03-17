@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../models/transport_route.dart';
 import '../models/vehicle.dart';
+import '../models/stop.dart';
 import '../api_service.dart';
 import 'package:frontend/widgets/app_drawer.dart';
 import 'package:frontend/screens/main_screen.dart';
@@ -25,6 +26,7 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   final MapController _mapController = MapController();
   late AnimationController _pulseController;
   DateTime _lastUpdated = DateTime.now();
+  TransportRoute? _detailedRoute;
 
   @override
   void initState() {
@@ -33,6 +35,10 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+    
+    if (widget.route != null) {
+      _fetchRouteDetails();
+    }
     
     _fetchVehicles();
     // Poll for vehicle locations every 5 seconds
@@ -44,6 +50,18 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
     _timer?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchRouteDetails() async {
+    try {
+      final detailed = await _apiService.getRouteDetails(widget.route!.id);
+      setState(() {
+        _detailedRoute = detailed;
+      });
+      _centerMapOnRoute();
+    } catch (e) {
+      debugPrint('Error fetching route details: $e');
+    }
   }
 
   Future<void> _fetchVehicles() async {
@@ -62,12 +80,36 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
     }
   }
 
+  void _centerMapOnRoute() {
+    if (_detailedRoute != null && _detailedRoute!.stops != null && _detailedRoute!.stops!.isNotEmpty) {
+       _mapController.move(LatLng(_detailedRoute!.stops!.first.latitude, _detailedRoute!.stops!.first.longitude), 13.0);
+    }
+  }
+
   void _centerMap() {
     if (_vehicles.isNotEmpty) {
       _mapController.move(LatLng(_vehicles.first.latitude, _vehicles.first.longitude), 14.0);
+    } else if (_detailedRoute != null && _detailedRoute!.stops != null && _detailedRoute!.stops!.isNotEmpty) {
+      _mapController.move(LatLng(_detailedRoute!.stops!.first.latitude, _detailedRoute!.stops!.first.longitude), 13.0);
     } else {
        _mapController.move(LatLng(27.7000, 85.3000), 13.0);
     }
+  }
+
+  List<LatLng> _buildPolylinePoints() {
+    // Prefer backend polyline (actual road geometry) if available
+    if (_detailedRoute?.polyline != null && _detailedRoute!.polyline!.isNotEmpty) {
+      return _detailedRoute!.polyline!
+          .map((pt) => LatLng(pt[0], pt[1]))
+          .toList();
+    }
+    // Fall back to connecting stops in order
+    if (_detailedRoute?.stops != null) {
+      return _detailedRoute!.stops!
+          .map((s) => LatLng(s.latitude, s.longitude))
+          .toList();
+    }
+    return [];
   }
 
   @override
@@ -104,9 +146,37 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                 userAgentPackageName: 'com.example.frontend',
               ),
+              if (_detailedRoute != null)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _buildPolylinePoints(),
+                      color: Colors.blueAccent.withOpacity(0.8),
+                      strokeWidth: 4.5,
+                      borderStrokeWidth: 1.5,
+                      borderColor: Colors.blue[900]!,
+                    )
+                  ],
+                ),
+              if (_detailedRoute != null && _detailedRoute!.stops != null)
+                 MarkerLayer(
+                   markers: _detailedRoute!.stops!.map((s) {
+                     return Marker(
+                       point: LatLng(s.latitude, s.longitude),
+                       width: 12, height: 12,
+                       child: Container(
+                         decoration: BoxDecoration(
+                           color: Colors.white,
+                           shape: BoxShape.circle,
+                           border: Border.all(color: Colors.blueAccent, width: 2.5)
+                         ),
+                       ),
+                     );
+                   }).toList(),
+                 ),
               MarkerLayer(
                 markers: _vehicles.map((v) {
                   return Marker(

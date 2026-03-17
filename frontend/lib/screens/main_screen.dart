@@ -4,6 +4,7 @@ import 'package:frontend/models/user.dart';
 import 'package:frontend/screens/map_tracking_screen.dart';
 import 'package:frontend/screens/route_listing_screen.dart';
 import 'package:frontend/screens/login_screen.dart';
+import 'package:frontend/screens/edit_profile_screen.dart';
 import 'package:frontend/widgets/app_drawer.dart';
 
 class MainScreen extends StatefulWidget {
@@ -83,7 +84,12 @@ class _MainScreenState extends State<MainScreen> {
                   child: CircleAvatar(
                     radius: 45,
                     backgroundColor: Colors.grey[200],
-                    child: const Icon(Icons.person, size: 50, color: Colors.red),
+                    backgroundImage: _currentUser?.profile_picture != null
+                        ? NetworkImage(_apiService.getProfileImageUrl(_currentUser!.profile_picture))
+                        : null,
+                    child: _currentUser?.profile_picture == null
+                        ? const Icon(Icons.person, size: 50, color: Colors.red)
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 20),
@@ -140,7 +146,16 @@ class _MainScreenState extends State<MainScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
                 const SizedBox(height: 16),
-                _buildProfileItem(Icons.edit, 'Edit Profile', Colors.blue),
+                _buildProfileItem(Icons.edit, 'Edit Profile', Colors.blue, onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(user: _currentUser!),
+                    ),
+                  ).then((value) {
+                    if (value == true) _checkLoginStatus();
+                  });
+                }),
                 _buildProfileItem(Icons.security, 'Security & Privacy', Colors.green),
                 _buildProfileItem(Icons.notifications, 'Notifications', Colors.orange),
                 const SizedBox(height: 32),
@@ -192,7 +207,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildProfileItem(IconData icon, String title, Color color) {
+  Widget _buildProfileItem(IconData icon, String title, Color color, {VoidCallback? onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -220,7 +235,7 @@ class _MainScreenState extends State<MainScreen> {
           style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-        onTap: () {
+        onTap: onTap ?? () {
           // Implement navigation
         },
       ),

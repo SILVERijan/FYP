@@ -40,6 +40,8 @@ dependencies:
   geolocator: ^14.0.2
   timeago: ^3.7.1
   shared_preferences: ^2.5.4
+  image_picker: ^1.1.2
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_test:
