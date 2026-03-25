@@ -1,47 +1,4 @@
-<?php
-
-namespace Database\Seeders;
-
-use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\Route;
-use App\Models\Stop;
-use App\Models\Vehicle;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
-
-class DatabaseSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $this->call([
-            AdminUserSeeder::class,
-        ]);
-        
-        // --- EXISTING ROUTE ---
-        $route1 = Route::create([
-            'name' => 'Ratnapark - Kalanki',
-            'type' => 'Bus',
-        ]);
-
-        $stop1 = Stop::create(['name' => 'Ratnapark', 'latitude' => 27.7061, 'longitude' => 85.3148]);
-        $stop2 = Stop::create(['name' => 'Tripureshwor', 'latitude' => 27.6937, 'longitude' => 85.3117]);
-        $stop3 = Stop::create(['name' => 'Kalimati', 'latitude' => 27.6980, 'longitude' => 85.2974]);
-        $stop4 = Stop::create(['name' => 'Kalanki', 'latitude' => 27.6938, 'longitude' => 85.2817]);
-
-        $route1->stops()->attach([
-            $stop1->id => ['sort_order' => 1],
-            $stop2->id => ['sort_order' => 2],
-            $stop3->id => ['sort_order' => 3],
-            $stop4->id => ['sort_order' => 4],
-        ]);
-
-        Vehicle::create(['plate_number' => 'BA 2 KHA 1234', 'current_lat' => 27.7000, 'current_lng' => 85.3050, 'status' => 'active', 'route_id' => $route1->id]);
-        Vehicle::create(['plate_number' => 'BA 1 KHA 5678', 'current_lat' => 27.6950, 'current_lng' => 85.2900, 'status' => 'active', 'route_id' => $route1->id]);
-
-        // --- NEW FULL ROUTE: NEPAL YATAYAT ---
-        // Actual road polyline extracted from https://nepal-streets.openalfa.com/bus-routes/nepal-yatayat-gopi-krishna-balkumari-3468819
-        $nyPolyline = [
+[
             [27.701605, 85.322301],
             [27.701878, 85.322351],
             [27.702006, 85.322369],
@@ -743,43 +700,4 @@ class DatabaseSeeder extends Seeder
             [27.701013, 85.322298],
             [27.701038, 85.322198],
             [27.701044, 85.322136],
-        ];
-
-        $route2 = Route::create([
-            'name' => 'Nepal Yatayat (Gopi Krishna - Balkumari)',
-            'type' => 'Bus',
-            'polyline' => json_encode($nyPolyline),
-        ]);
-
-        // Creating all the stops for the Nepal Yatayat route
-        $nyStopsData = [
-            ['name' => 'Gopi Krishna Stop', 'latitude' => 27.7180, 'longitude' => 85.3421],
-            ['name' => 'Chakrapath Stop -- South', 'latitude' => 27.7153, 'longitude' => 85.3418],
-            ['name' => 'New Plaza Stop', 'latitude' => 27.7027, 'longitude' => 85.3228],
-            ['name' => 'BaidyaKhana Stop', 'latitude' => 27.6970, 'longitude' => 85.3242],
-            ['name' => 'Anamnagar Stop', 'latitude' => 27.6961, 'longitude' => 85.3245],
-            ['name' => 'Singha Durbar East Stop', 'latitude' => 27.6946, 'longitude' => 85.3249],
-            ['name' => 'Hanumanthan Stop', 'latitude' => 27.6914, 'longitude' => 85.3262],
-            ['name' => 'Thapagaun Stop', 'latitude' => 27.6896, 'longitude' => 85.3330],
-            ['name' => 'Naya Baneshwar Tempo Stop', 'latitude' => 27.6888, 'longitude' => 85.3359],
-            ['name' => 'Koteshwar Chok', 'latitude' => 27.6756, 'longitude' => 85.3465],
-            ['name' => 'Balkumari', 'latitude' => 27.6710, 'longitude' => 85.3395],
-        ];
-
-        $attachData = [];
-        $order = 1;
-
-        foreach ($nyStopsData as $stopData) {
-            $stop = Stop::create($stopData);
-            $attachData[$stop->id] = ['sort_order' => $order];
-            $order++;
-        }
-
-        $route2->stops()->attach($attachData);
-
-        // Add dummy active vehicles to Nepal Yatayat
-        Vehicle::create(['plate_number' => 'BA 4 KHA 1111', 'current_lat' => 27.7180, 'current_lng' => 85.3421, 'status' => 'active', 'route_id' => $route2->id]);
-        Vehicle::create(['plate_number' => 'BA 4 KHA 2222', 'current_lat' => 27.6961, 'current_lng' => 85.3245, 'status' => 'active', 'route_id' => $route2->id]);
-        Vehicle::create(['plate_number' => 'BA 4 KHA 3333', 'current_lat' => 27.6710, 'current_lng' => 85.3395, 'status' => 'active', 'route_id' => $route2->id]);
-    }
-}
+        ]

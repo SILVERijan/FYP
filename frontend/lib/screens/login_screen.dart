@@ -26,9 +26,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result['success']) {
       if (mounted) {
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const MainScreen()),
+          (route) => false,
         );
       }
     } else {

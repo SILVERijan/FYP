@@ -27,9 +27,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (result['success']) {
       if (mounted) {
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const MainScreen()),
+          (route) => false,
         );
       }
     } else {
@@ -144,3 +145,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 }
+

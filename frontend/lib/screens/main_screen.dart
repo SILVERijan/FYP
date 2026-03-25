@@ -249,12 +249,6 @@ class _MainScreenState extends State<MainScreen> {
     if (_selectedIndex == 1) title = 'All Routes';
     if (_selectedIndex == 2) title = 'My Profile';
 
-    final List<Widget> widgetOptions = <Widget>[
-      const MapTrackingScreen(showAppBar: false),
-      const RouteListingScreen(showAppBar: false),
-      _buildProfileTab(),
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
@@ -264,7 +258,34 @@ class _MainScreenState extends State<MainScreen> {
         onItemSelected: _onItemTapped,
       ),
       body: SafeArea(
-        child: widgetOptions.elementAt(_selectedIndex),
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            const MapTrackingScreen(showAppBar: false),
+            const RouteListingScreen(showAppBar: false),
+            _buildProfileTab(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.directions_bus),
+            label: 'Routes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,4 @@
+d:/FYP\all_segments.json: 471 points in 7 segments, Lng: 85.322 to 85.350, Lat: 27.674 to 27.740
+d:/FYP\flat_coords.json: 471 points, Lng: 85.322 to 85.350, Lat: 27.674 to 27.740
+d:/FYP\full_extracted_route.json: 471 points, Lng: 85.322 to 85.350, Lat: 27.674 to 27.740
+d:/FYP\full_road_coords.json failed: Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)
