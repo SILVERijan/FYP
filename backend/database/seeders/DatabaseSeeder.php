@@ -783,3 +783,4 @@ class DatabaseSeeder extends Seeder
         Vehicle::create(['plate_number' => 'BA 4 KHA 3333', 'current_lat' => 27.6710, 'current_lng' => 85.3395, 'status' => 'active', 'route_id' => $route2->id]);
     }
 }
+
