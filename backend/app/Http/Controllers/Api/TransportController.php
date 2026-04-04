@@ -11,11 +11,14 @@ class TransportController extends Controller
 {
     public function getRoutes()
     {
-        return response()->json(Route::all());
+        // Exclude polyline from list — only needed when viewing a specific route on map
+        $routes = Route::select(['id', 'name', 'type', 'created_at', 'updated_at'])->get();
+        return response()->json($routes);
     }
 
     public function getRouteDetails($id)
     {
+        // Full details including polyline and stops for map display
         $route = Route::with('stops')->find($id);
         if (!$route) {
             return response()->json(['message' => 'Route not found'], 404);
@@ -25,8 +28,12 @@ class TransportController extends Controller
 
     public function getVehicles()
     {
-        // Get all active vehicles with their assigned route information
-        $vehicles = Vehicle::with('route')->where('status', 'active')->get();
+        // Vehicles with minimal route info — polyline excluded from query to save memory/bandwidth
+        $vehicles = Vehicle::with(['route' => function($query) {
+            $query->select(['id', 'name', 'type', 'created_at', 'updated_at']);
+        }])
+            ->where('status', 'active')
+            ->get();
         return response()->json($vehicles);
     }
 }

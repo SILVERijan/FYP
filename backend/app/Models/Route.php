@@ -11,6 +11,10 @@ class Route extends Model
 
     protected $fillable = ['name', 'type', 'polyline'];
 
+    protected $casts = [
+        'polyline' => 'array',
+    ];
+
     public function vehicles()
     {
         return $this->hasMany(Vehicle::class);

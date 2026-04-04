@@ -8,8 +8,8 @@ import 'models/transport_route.dart';
 import 'models/vehicle.dart';
 
 class ApiService {
-  static String get baseUrl => Platform.isAndroid ? 'http://10.0.2.2:8000/api' : 'http://127.0.0.1:8000/api';
-  static String get serverUrl => Platform.isAndroid ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000';
+  static String get baseUrl => Platform.isAndroid ? 'http://10.0.2.2:8080/api' : 'http://127.0.0.1:8080/api';
+  static String get serverUrl => Platform.isAndroid ? 'http://10.0.2.2:8080' : 'http://127.0.0.1:8080';
 
   // ... (existing methods kept for brevety, but I will replace the whole file content to be safe and clean)
 
