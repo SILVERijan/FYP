@@ -1,5 +1,5 @@
-import 'dart:convert';
-import 'dart:io';
+ import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,8 +8,14 @@ import 'models/transport_route.dart';
 import 'models/vehicle.dart';
 
 class ApiService {
-  static String get baseUrl => Platform.isAndroid ? 'http://10.0.2.2:8080/api' : 'http://127.0.0.1:8080/api';
-  static String get serverUrl => Platform.isAndroid ? 'http://10.0.2.2:8080' : 'http://127.0.0.1:8080';
+  static String get baseUrl {
+    if (kIsWeb) return 'http://127.0.0.1:8080/api';
+    return defaultTargetPlatform == TargetPlatform.android ? 'http://10.0.2.2:8080/api' : 'http://127.0.0.1:8080/api';
+  }
+  static String get serverUrl {
+    if (kIsWeb) return 'http://127.0.0.1:8080';
+    return defaultTargetPlatform == TargetPlatform.android ? 'http://10.0.2.2:8080' : 'http://127.0.0.1:8080';
+  }
 
   // ... (existing methods kept for brevety, but I will replace the whole file content to be safe and clean)
 
@@ -150,7 +156,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> updateProfile(String name, File? image) async {
+  Future<Map<String, dynamic>> updateProfile(String name, dynamic image) async {
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'Not authenticated'};
@@ -163,7 +169,8 @@ class ApiService {
 
       request.fields['name'] = name;
 
-      if (image != null) {
+      if (image != null && !kIsWeb) {
+        // dynamic 'image' is expected to be a File object on mobile/desktop
         request.files.add(await http.MultipartFile.fromPath(
           'profile_picture',
           image.path,
