@@ -136,8 +136,12 @@ class ApiService {
     }
   }
 
-  Future<List<Vehicle>> getVehicles() async {
-    final response = await http.get(Uri.parse('$baseUrl/transport/vehicles'));
+  Future<List<Vehicle>> getVehicles({List<int>? routeIds}) async {
+    String url = '$baseUrl/transport/vehicles';
+    if (routeIds != null && routeIds.isNotEmpty) {
+      url += '?route_ids=${routeIds.join(',')}';
+    }
+    final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       List jsonResponse = json.decode(response.body);
       return jsonResponse.map((data) => Vehicle.fromJson(data)).toList();

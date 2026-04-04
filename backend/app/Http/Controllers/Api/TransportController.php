@@ -26,14 +26,21 @@ class TransportController extends Controller
         return response()->json($route);
     }
 
-    public function getVehicles()
+    public function getVehicles(Request $request)
     {
         // Vehicles with minimal route info — polyline excluded from query to save memory/bandwidth
-        $vehicles = Vehicle::with(['route' => function($query) {
-            $query->select(['id', 'name', 'type', 'created_at', 'updated_at']);
-        }])
-            ->where('status', 'active')
-            ->get();
+        $query = Vehicle::with(['route' => function($q) {
+            $q->select(['id', 'name', 'type', 'created_at', 'updated_at']);
+        }])->where('status', 'active');
+
+        if ($request->has('route_ids')) {
+            $routeIds = array_filter(explode(',', $request->input('route_ids')));
+            if (!empty($routeIds)) {
+                $query->whereIn('route_id', $routeIds);
+            }
+        }
+
+        $vehicles = $query->get();
         return response()->json($vehicles);
     }
 }

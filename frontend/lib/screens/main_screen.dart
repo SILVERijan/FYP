@@ -6,6 +6,8 @@ import 'package:frontend/screens/route_listing_screen.dart';
 import 'package:frontend/screens/login_screen.dart';
 import 'package:frontend/screens/edit_profile_screen.dart';
 import 'package:frontend/widgets/app_drawer.dart';
+import 'package:frontend/widgets/desktop_sidebar.dart';
+import 'package:frontend/screens/desktop_routes_dashboard.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -244,49 +246,78 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String title = 'Samaya Sawari';
-    if (_selectedIndex == 0) title = 'Map Tracking';
-    if (_selectedIndex == 1) title = 'All Routes';
-    if (_selectedIndex == 2) title = 'My Profile';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth >= 800;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      drawer: AppDrawer(
-        selectedIndex: _selectedIndex,
-        onItemSelected: _onItemTapped,
-      ),
-      body: SafeArea(
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: [
-            const MapTrackingScreen(showAppBar: false),
-            const RouteListingScreen(showAppBar: false),
-            _buildProfileTab(),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Map',
+        String title = 'Samaya Sawari';
+        if (_selectedIndex == 0) title = 'Map Tracking';
+        if (_selectedIndex == 1) title = 'All Routes';
+        if (_selectedIndex == 2) title = 'My Profile';
+
+        if (isDesktop) {
+          return Scaffold(
+            body: Row(
+              children: [
+                DesktopSidebar(
+                  selectedIndex: _selectedIndex,
+                  onItemSelected: _onItemTapped,
+                ),
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: [
+                      const MapTrackingScreen(showAppBar: false),
+                      const DesktopRoutesDashboard(),
+                      SafeArea(child: _buildProfileTab()),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(title),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.directions_bus),
-            label: 'Routes',
+          drawer: AppDrawer(
+            selectedIndex: _selectedIndex,
+            onItemSelected: _onItemTapped,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+          body: SafeArea(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                const MapTrackingScreen(showAppBar: false),
+                const RouteListingScreen(showAppBar: false),
+                _buildProfileTab(),
+              ],
+            ),
           ),
-        ],
-      ),
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Colors.grey,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.map),
+                label: 'Map',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.directions_bus),
+                label: 'Routes',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

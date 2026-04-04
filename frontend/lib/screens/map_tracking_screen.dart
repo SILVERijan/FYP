@@ -27,6 +27,8 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   late AnimationController _pulseController;
   DateTime _lastUpdated = DateTime.now();
   TransportRoute? _detailedRoute;
+  List<int> _selectedRouteIds = [];
+  List<TransportRoute> _allRoutes = [];
 
   @override
   void initState() {
@@ -38,11 +40,26 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
     
     if (widget.route != null) {
       _fetchRouteDetails();
+    } else {
+      _fetchAllRoutes();
     }
     
     _fetchVehicles();
     // Poll for vehicle locations every 5 seconds
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchVehicles());
+  }
+
+  Future<void> _fetchAllRoutes() async {
+    try {
+      final routes = await _apiService.getRoutes();
+      if (mounted) {
+        setState(() {
+          _allRoutes = routes;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching all routes: $e');
+    }
   }
 
   @override
@@ -66,15 +83,34 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
 
   Future<void> _fetchVehicles() async {
     try {
-      final vehicles = await _apiService.getVehicles();
-      setState(() {
-        if (widget.route != null) {
-          _vehicles = vehicles.where((v) => v.route?.id == widget.route!.id).toList();
-        } else {
-          _vehicles = vehicles;
+      if (widget.route == null && _selectedRouteIds.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _vehicles = [];
+            _lastUpdated = DateTime.now();
+          });
         }
-        _lastUpdated = DateTime.now();
-      });
+        return; // Option A: Empty map by default
+      }
+
+      List<int>? routeIdsToFetch;
+      if (widget.route != null) {
+        routeIdsToFetch = [widget.route!.id];
+      } else if (_selectedRouteIds.isNotEmpty) {
+        routeIdsToFetch = _selectedRouteIds;
+      }
+
+      final vehicles = await _apiService.getVehicles(routeIds: routeIdsToFetch);
+      if (mounted) {
+        setState(() {
+          if (widget.route != null) {
+            _vehicles = vehicles.where((v) => v.route?.id == widget.route!.id).toList();
+          } else {
+            _vehicles = vehicles;
+          }
+          _lastUpdated = DateTime.now();
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching vehicles: $e');
     }
@@ -292,7 +328,7 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
             const SizedBox(width: 16),
           Expanded(
             child: Text(
-              widget.route?.name ?? "All Vehicles",
+              widget.route?.name ?? (_selectedRouteIds.isEmpty ? "No routes selected" : "${_selectedRouteIds.length} routes selected"),
               style: const TextStyle(
                 color: Colors.black87,
                 fontSize: 18,
@@ -302,21 +338,29 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.map_outlined, color: Colors.black87, size: 20),
-          )
+          if (widget.route == null)
+            IconButton(
+              icon: Icon(Icons.filter_list, color: _selectedRouteIds.isEmpty ? Colors.black87 : Colors.blue),
+              onPressed: _showRouteFilterSheet,
+              tooltip: 'Filter Routes',
+            )
+          else
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.map_outlined, color: Colors.black87, size: 20),
+            )
         ],
       ),
     );
   }
 
   Widget _buildBottomPanel(Color surfaceWhite, Color brandRed) {
+    // ... kept identical for brevity
     return Container(
         height: 220,
         decoration: BoxDecoration(
@@ -382,7 +426,7 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
             // Vehicle List
             Expanded(
               child: _vehicles.isEmpty 
-              ? const Center(child: Text("No vehicles currently on this route", style: TextStyle(color: Colors.black54)))
+              ? const Center(child: Text("No vehicles actively tracked", style: TextStyle(color: Colors.black54)))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _vehicles.length,
@@ -409,6 +453,96 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
             ),
           ],
         )
+    );
+  }
+
+  void _showRouteFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.6,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 12),
+                    height: 4,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Filter Bus Routes",
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                    ),
+                  ),
+                  const Divider(color: Colors.black12, height: 1),
+                  Expanded(
+                    child: _allRoutes.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView.builder(
+                          itemCount: _allRoutes.length,
+                          itemBuilder: (context, index) {
+                            final route = _allRoutes[index];
+                            final isSelected = _selectedRouteIds.contains(route.id);
+                            return CheckboxListTile(
+                              title: Text(route.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(route.type),
+                              value: isSelected,
+                              activeColor: Theme.of(context).colorScheme.primary,
+                              onChanged: (bool? value) {
+                                setModalState(() {
+                                  if (value == true) {
+                                    _selectedRouteIds.add(route.id);
+                                  } else {
+                                    _selectedRouteIds.remove(route.id);
+                                  }
+                                });
+                                // also update parent state to see immediate visual change in header
+                                setState(() {});
+                                _fetchVehicles();
+                              },
+                            );
+                          },
+                        ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Apply Filter", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            );
+          }
+        );
+      }
     );
   }
 }

@@ -7,7 +7,8 @@ import 'package:frontend/screens/main_screen.dart';
 
 class RouteListingScreen extends StatefulWidget {
   final bool showAppBar;
-  const RouteListingScreen({super.key, this.showAppBar = true});
+  final Function(TransportRoute)? onRouteSelected;
+  const RouteListingScreen({super.key, this.showAppBar = true, this.onRouteSelected});
 
   @override
   State<RouteListingScreen> createState() => _RouteListingScreenState();
@@ -67,12 +68,16 @@ class _RouteListingScreenState extends State<RouteListingScreen> {
                   subtitle: Text(route.type),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MapTrackingScreen(route: route),
-                      ),
-                    );
+                    if (widget.onRouteSelected != null) {
+                      widget.onRouteSelected!(route);
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MapTrackingScreen(route: route),
+                        ),
+                      );
+                    }
                   },
                 ),
               );
