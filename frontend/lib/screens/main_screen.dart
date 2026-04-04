@@ -8,6 +8,10 @@ import 'package:frontend/screens/edit_profile_screen.dart';
 import 'package:frontend/widgets/app_drawer.dart';
 import 'package:frontend/widgets/desktop_sidebar.dart';
 import 'package:frontend/screens/desktop_routes_dashboard.dart';
+import 'package:frontend/screens/admin_dashboard_screen.dart';
+import 'package:frontend/screens/admin/user_management_screen.dart';
+import 'package:frontend/screens/admin/vehicle_management_screen.dart';
+import 'package:frontend/screens/admin/route_management_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -254,6 +258,22 @@ class _MainScreenState extends State<MainScreen> {
         if (_selectedIndex == 0) title = 'Map Tracking';
         if (_selectedIndex == 1) title = 'All Routes';
         if (_selectedIndex == 2) title = 'My Profile';
+        if (_selectedIndex == 3) title = 'Admin Dashboard';
+        if (_selectedIndex == 4) title = 'User Management';
+        if (_selectedIndex == 5) title = 'Transport Management';
+        if (_selectedIndex == 6) title = 'Route Management';
+
+        List<BottomNavigationBarItem> bottomNavItems = [
+          const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+          const BottomNavigationBarItem(icon: Icon(Icons.directions_bus), label: 'Routes'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ];
+        if (_currentUser?.role == 'admin') {
+          bottomNavItems.add(const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'));
+        }
+
+        // Ensure safe index mapping if role changes momentarily
+        int safeIndex = _selectedIndex < bottomNavItems.length ? _selectedIndex : 0;
 
         if (isDesktop) {
           return Scaffold(
@@ -270,6 +290,17 @@ class _MainScreenState extends State<MainScreen> {
                       const MapTrackingScreen(showAppBar: false),
                       const DesktopRoutesDashboard(),
                       SafeArea(child: _buildProfileTab()),
+                      if (_currentUser?.role == 'admin') ...[
+                        const AdminDashboardScreen(),
+                        const UserManagementScreen(),
+                        const VehicleManagementScreen(),
+                        const RouteManagementScreen(),
+                      ] else ...[
+                        const SizedBox.shrink(),
+                        const SizedBox.shrink(),
+                        const SizedBox.shrink(),
+                        const SizedBox.shrink(),
+                      ]
                     ],
                   ),
                 ),
@@ -293,28 +324,27 @@ class _MainScreenState extends State<MainScreen> {
                 const MapTrackingScreen(showAppBar: false),
                 const RouteListingScreen(showAppBar: false),
                 _buildProfileTab(),
+                if (_currentUser?.role == 'admin') ...[
+                  const AdminDashboardScreen(),
+                  const UserManagementScreen(),
+                  const VehicleManagementScreen(),
+                  const RouteManagementScreen(),
+                ] else ...[
+                  const SizedBox.shrink(),
+                  const SizedBox.shrink(),
+                  const SizedBox.shrink(),
+                  const SizedBox.shrink(),
+                ]
               ],
             ),
           ),
           bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _selectedIndex,
+            currentIndex: safeIndex,
+            type: BottomNavigationBarType.fixed,
             onTap: _onItemTapped,
             selectedItemColor: Theme.of(context).colorScheme.primary,
             unselectedItemColor: Colors.grey,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.map),
-                label: 'Map',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.directions_bus),
-                label: 'Routes',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
+            items: bottomNavItems,
           ),
         );
       },

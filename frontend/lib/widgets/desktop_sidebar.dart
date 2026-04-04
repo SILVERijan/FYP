@@ -94,6 +94,71 @@ class DesktopSidebar extends StatelessWidget {
                   onItemSelected(2);
                 },
               ),
+              if (user?.role == 'admin') ...[
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'ADMIN PORTAL',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.dashboard),
+                  title: const Text('Dashboard'),
+                  selected: selectedIndex == 3,
+                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                  selectedColor: theme.colorScheme.primary,
+                  iconColor: Colors.black87,
+                  textColor: Colors.black87,
+                  onTap: () {
+                    onItemSelected(3);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.people),
+                  title: const Text('User Management'),
+                  selected: selectedIndex == 4,
+                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                  selectedColor: theme.colorScheme.primary,
+                  iconColor: Colors.black87,
+                  textColor: Colors.black87,
+                  onTap: () {
+                    onItemSelected(4);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.directions_car),
+                  title: const Text('Transport Management'),
+                  selected: selectedIndex == 5,
+                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                  selectedColor: theme.colorScheme.primary,
+                  iconColor: Colors.black87,
+                  textColor: Colors.black87,
+                  onTap: () {
+                    onItemSelected(5);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.route),
+                  title: const Text('Route Management'),
+                  selected: selectedIndex == 6,
+                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                  selectedColor: theme.colorScheme.primary,
+                  iconColor: Colors.black87,
+                  textColor: Colors.black87,
+                  onTap: () {
+                    onItemSelected(6);
+                  },
+                ),
+              ],
               const Divider(),
               const Spacer(),
               ListTile(

@@ -198,6 +198,114 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getAdminDashboardStats() async {
+    final token = await getToken();
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin/dashboard'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final jsonResponse = json.decode(response.body);
+      return jsonResponse['data'] as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to load admin stats: ${response.body}');
+    }
+  }
+
+  // === ADMIN CRUD: USERS ===
+  Future<List<dynamic>> getAdminUsers() async {
+    return _adminGetList('/admin/users');
+  }
+  Future<dynamic> createAdminUser(Map<String, dynamic> data) async {
+    return _adminPost('/admin/users', data);
+  }
+  Future<dynamic> updateAdminUser(int id, Map<String, dynamic> data) async {
+    return _adminPut('/admin/users/$id', data);
+  }
+  Future<void> deleteAdminUser(int id) async {
+    await _adminDelete('/admin/users/$id');
+  }
+
+  // === ADMIN CRUD: VEHICLES ===
+  Future<List<dynamic>> getAdminVehicles() async {
+    return _adminGetList('/admin/vehicles');
+  }
+  Future<dynamic> createAdminVehicle(Map<String, dynamic> data) async {
+    return _adminPost('/admin/vehicles', data);
+  }
+  Future<dynamic> updateAdminVehicle(int id, Map<String, dynamic> data) async {
+    return _adminPut('/admin/vehicles/$id', data);
+  }
+  Future<void> deleteAdminVehicle(int id) async {
+    await _adminDelete('/admin/vehicles/$id');
+  }
+
+  // === ADMIN CRUD: ROUTES ===
+  Future<List<dynamic>> getAdminRoutes() async {
+    return _adminGetList('/admin/routes');
+  }
+  Future<dynamic> createAdminRoute(Map<String, dynamic> data) async {
+    return _adminPost('/admin/routes', data);
+  }
+  Future<dynamic> updateAdminRoute(int id, Map<String, dynamic> data) async {
+    return _adminPut('/admin/routes/$id', data);
+  }
+  Future<void> deleteAdminRoute(int id) async {
+    await _adminDelete('/admin/routes/$id');
+  }
+
+  // Helper methods for Admin CRUD
+  Future<List<dynamic>> _adminGetList(String endpoint) async {
+    final token = await getToken();
+    final response = await http.get(Uri.parse('$baseUrl$endpoint'), headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    if (response.statusCode == 200) {
+      return json.decode(response.body)['data'];
+    }
+    throw Exception('Failed to load list: ${response.body}');
+  }
+
+  Future<dynamic> _adminPost(String endpoint, Map<String, dynamic> data) async {
+    final token = await getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl$endpoint'), 
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json', 'Content-Type': 'application/json'},
+      body: json.encode(data)
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return json.decode(response.body)['data'];
+    }
+    throw Exception('Failed to create: ${response.body}');
+  }
+
+  Future<dynamic> _adminPut(String endpoint, Map<String, dynamic> data) async {
+    final token = await getToken();
+    final response = await http.put(
+      Uri.parse('$baseUrl$endpoint'), 
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json', 'Content-Type': 'application/json'},
+      body: json.encode(data)
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body)['data'];
+    }
+    throw Exception('Failed to update: ${response.body}');
+  }
+
+  Future<void> _adminDelete(String endpoint) async {
+    final token = await getToken();
+    final response = await http.delete(Uri.parse('$baseUrl$endpoint'), headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete: ${response.body}');
+    }
+  }
+
   String getProfileImageUrl(String? path) {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
