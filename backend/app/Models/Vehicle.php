@@ -9,7 +9,7 @@ class Vehicle extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['plate_number', 'current_lat', 'current_lng', 'status', 'route_id'];
+    protected $fillable = ['vehicle_name', 'type', 'capacity', 'plate_number', 'current_lat', 'current_lng', 'status', 'route_id'];
 
     public function route()
     {

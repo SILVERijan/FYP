@@ -14,7 +14,7 @@ match = re.search(r'var road_coords\s*=\s*((\[\[\[.*?\]\]\]|\[\[.*?\]\]))', cont
 if match:
     coords_json = match.group(1)
     # The JSON might have extra commas or be slightly malformed for standard json.loads
-    # But let's try standard first.
+
     try:
         data = json.loads(coords_json)
         # Flatten if it's nested [[[...]]]

@@ -24,7 +24,7 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => ['required', Rule::in(['user', 'admin'])],
+            'role' => ['required', Rule::in(['user', 'admin', 'driver'])],
         ]);
 
         $user = User::create([
@@ -32,6 +32,7 @@ class AdminController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'is_active' => true,
         ]);
 
         return response()->json(['message' => 'User created successfully', 'data' => $user], 201);
@@ -45,12 +46,14 @@ class AdminController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
-            'role' => ['sometimes', Rule::in(['user', 'admin'])],
+            'role' => ['sometimes', Rule::in(['user', 'admin', 'driver'])],
+            'is_active' => 'sometimes|boolean',
         ]);
 
         if (isset($validated['name'])) $user->name = $validated['name'];
         if (isset($validated['email'])) $user->email = $validated['email'];
         if (isset($validated['role'])) $user->role = $validated['role'];
+        if (array_key_exists('is_active', $validated)) $user->is_active = $validated['is_active'];
         if (!empty($validated['password'])) $user->password = Hash::make($validated['password']);
 
         $user->save();
@@ -77,12 +80,8 @@ class AdminController extends Controller
     public function createRoute(Request $request)
     {
         $validated = $request->validate([
-            'route_name' => 'required|string|max:255',
-            'origin' => 'required|string|max:255',
-            'destination' => 'required|string|max:255',
-            'distance_km' => 'nullable|numeric',
-            'estimated_duration' => 'nullable|string',
-            'encoded_polyline' => 'nullable|string'
+            'name' => 'required|string|max:255',
+            'type' => 'required|string|max:255',
         ]);
 
         $route = TransportRoute::create($validated);
@@ -92,7 +91,11 @@ class AdminController extends Controller
     public function updateRoute(Request $request, $id)
     {
         $route = TransportRoute::findOrFail($id);
-        $route->update($request->all());
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'type' => 'sometimes|string|max:255',
+        ]);
+        $route->update($validated);
         return response()->json(['message' => 'Route updated successfully', 'data' => $route]);
     }
 
