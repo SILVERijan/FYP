@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:frontend/api_service.dart';
 import 'package:frontend/screens/login_screen.dart';
 import 'package:frontend/screens/main_screen.dart';
@@ -16,7 +17,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _apiService = ApiService();
   bool _isLoading = false;
-  bool _obscurePassword = true;
   String _selectedRole = 'user'; // 'user' or 'driver'
 
   Future<void> _register() async {
@@ -24,7 +24,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _emailController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.black87,
+        ),
       );
       return;
     }
@@ -49,7 +53,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'])),
+          SnackBar(
+            content: Text(result['message']),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.black87,
+          ),
         );
       }
     }
@@ -57,186 +65,144 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header
-                Container(
-                  alignment: Alignment.center,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.3),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.person_add_rounded, size: 40, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Create Account',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Join Nepal Yatayat today',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 36),
+    final theme = Theme.of(context);
 
-                // Role Selector
-                const Text(
-                  'I am registering as...',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _RoleCard(
+                child: const Icon(Icons.arrow_back_rounded, color: Colors.black, size: 28),
+              ).animate().fadeIn().slideX(begin: 0.2),
+              
+              const SizedBox(height: 32),
+              
+              Text(
+                'Join the ride.',
+                style: theme.textTheme.displayLarge,
+              ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.1),
+              
+              const SizedBox(height: 8),
+              
+              Text(
+                'Create your account to start tracking and traveling efficiently.',
+                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.black54),
+              ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
+              
+              const SizedBox(height: 40),
+
+              const Text(
+                'Register as',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black),
+              ).animate().fadeIn(delay: 400.ms),
+              
+              const SizedBox(height: 12),
+              
+              Row(
+                children: [
+                  Expanded(
+                    child: _RoleButton(
                       label: 'Passenger',
-                      subtitle: 'Track buses & routes',
-                      icon: Icons.directions_walk_rounded,
+                      icon: Icons.person_rounded,
                       isSelected: _selectedRole == 'user',
                       onTap: () => setState(() => _selectedRole = 'user'),
-                    )),
-                    const SizedBox(width: 12),
-                    Expanded(child: _RoleCard(
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _RoleButton(
                       label: 'Driver',
-                      subtitle: 'Manage your vehicle',
                       icon: Icons.directions_bus_rounded,
                       isSelected: _selectedRole == 'driver',
                       onTap: () => setState(() => _selectedRole = 'driver'),
-                    )),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Name field
-                _buildTextField(
-                  controller: _nameController,
-                  label: 'Full Name',
-                  icon: Icons.person_outline_rounded,
-                ),
-                const SizedBox(height: 16),
-
-                // Email field
-                _buildTextField(
-                  controller: _emailController,
-                  label: 'Email Address',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-
-                // Password field
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-                  ),
-                  child: TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFFE53935)),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                   ),
+                ],
+              ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1),
+              
+              const SizedBox(height: 32),
+              
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
-                const SizedBox(height: 32),
-
-                // Register Button
-                SizedBox(
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE53935),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                        : Text(
-                            'Register as ${_selectedRole == 'driver' ? 'Driver' : 'Passenger'}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                          ),
-                  ),
+              ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
+              
+              const SizedBox(height: 16),
+              
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
-                const SizedBox(height: 24),
-                TextButton(
+                keyboardType: TextInputType.emailAddress,
+              ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.1),
+              
+              const SizedBox(height: 16),
+              
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock_open_rounded),
+                ),
+              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1),
+              
+              const SizedBox(height: 32),
+              
+              ElevatedButton(
+                onPressed: _isLoading ? null : _register,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20, 
+                        width: 20, 
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : Text('Register as ${_selectedRole == 'driver' ? 'Driver' : 'Passenger'}'),
+              ).animate().fadeIn(delay: 900.ms).scale(begin: const Offset(0.95, 0.95)),
+              
+              const SizedBox(height: 24),
+              
+              Center(
+                child: TextButton(
                   onPressed: () {
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                    Navigator.pushReplacement(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    );
                   },
                   child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.black87, fontSize: 14),
                       children: [
-                        TextSpan(text: 'Already have an account? '),
-                        TextSpan(text: 'Login here', style: TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.bold)),
+                        const TextSpan(text: 'Already have an account? '),
+                        TextSpan(
+                          text: 'Login here', 
+                          style: TextStyle(
+                            color: theme.colorScheme.secondary, 
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ).animate().fadeIn(delay: 1100.ms),
+            ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFFE53935)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-          filled: true,
-          fillColor: Colors.white,
         ),
       ),
     );
@@ -251,16 +217,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
-class _RoleCard extends StatelessWidget {
+class _RoleButton extends StatelessWidget {
   final String label;
-  final String subtitle;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _RoleCard({
+  const _RoleButton({
     required this.label,
-    required this.subtitle,
     required this.icon,
     required this.isSelected,
     required this.onTap,
@@ -272,23 +236,24 @@ class _RoleCard extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE53935).withOpacity(0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFE53935) : Colors.grey.shade200,
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          color: isSelected ? Colors.black : const Color(0xFFF1F1F1),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 28, color: isSelected ? const Color(0xFFE53935) : Colors.grey),
-            const SizedBox(height: 6),
-            Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? const Color(0xFFE53935) : const Color(0xFF1A1A2E))),
-            const SizedBox(height: 2),
-            Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
+            Icon(icon, size: 20, color: isSelected ? Colors.white : Colors.black54),
+            const SizedBox(width: 8),
+            Text(
+              label, 
+              style: TextStyle(
+                fontWeight: FontWeight.w700, 
+                fontSize: 14, 
+                color: isSelected ? Colors.white : Colors.black54,
+              ),
+            ),
           ],
         ),
       ),

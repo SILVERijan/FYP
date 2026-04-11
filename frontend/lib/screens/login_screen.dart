@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:frontend/api_service.dart';
 import 'package:frontend/screens/register_screen.dart';
 import 'package:frontend/screens/main_screen.dart';
@@ -35,7 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'])),
+          SnackBar(
+            content: Text(result['message']),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.black87,
+          ),
         );
       }
     }
@@ -43,88 +48,108 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Login'),
-      ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.directions_bus, size: 100, color: Colors.red),
-              const SizedBox(height: 16),
-              const Text(
-                'Samaya Sawari',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
+              const SizedBox(height: 20),
+              // Uber style minimal logo/icon
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ),
-              const SizedBox(height: 40),
+                child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 32),
+              ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
+              
+              const SizedBox(height: 48),
+              
+              Text(
+                'Drive into the\nnext chapter.',
+                style: theme.textTheme.displayLarge,
+              ).animate().fadeIn(delay: 200.ms, duration: 600.ms).slideY(begin: 0.1),
+              
+              const SizedBox(height: 8),
+              
+              Text(
+                'Login to Samaya Sawari to track your transit in real-time.',
+                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.black54),
+              ).animate().fadeIn(delay: 400.ms, duration: 600.ms),
+              
+              const SizedBox(height: 48),
+              
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email Address',
-                  prefixIcon: Icon(Icons.email, color: Colors.red),
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
                 keyboardType: TextInputType.emailAddress,
-              ),
+              ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
+              
               const SizedBox(height: 16),
+              
               TextField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock, color: Colors.red),
+                  prefixIcon: Icon(Icons.lock_open_rounded),
                 ),
                 obscureText: true,
-              ),
+              ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.1),
+              
               const SizedBox(height: 32),
+              
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text('LOGIN', style: TextStyle(fontSize: 16, letterSpacing: 1.2)),
-              ),
+                    : const Text('Continue'),
+              ).animate().fadeIn(delay: 800.ms).scale(begin: const Offset(0.95, 0.95)),
+              
               const SizedBox(height: 24),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                  );
-                },
-                child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(color: Colors.black87, fontSize: 14),
-                    children: [
-                      TextSpan(text: "Don't have an account? "),
-                      TextSpan(
-                        text: "Register now",
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+              
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                    );
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.black87, fontSize: 14),
+                      children: [
+                        const TextSpan(text: "Don't have an account? "),
+                        TextSpan(
+                          text: "Register now",
+                          style: TextStyle(
+                            color: theme.colorScheme.secondary, 
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ).animate().fadeIn(delay: 1000.ms),
             ],
           ),
         ),
       ),
-    ),
     );
   }
 

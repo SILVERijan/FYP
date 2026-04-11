@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter_animate/flutter_animate.dart';
 import '../models/transport_route.dart';
 import '../models/vehicle.dart';
 import '../models/stop.dart';
 import '../api_service.dart';
-import 'package:frontend/widgets/app_drawer.dart';
-import 'package:frontend/screens/main_screen.dart';
+import '../theme/app_theme.dart';
 
 class MapTrackingScreen extends StatefulWidget {
   final TransportRoute? route;
@@ -24,19 +24,15 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   List<Vehicle> _vehicles = [];
   Timer? _timer;
   final MapController _mapController = MapController();
-  late AnimationController _pulseController;
   DateTime _lastUpdated = DateTime.now();
   TransportRoute? _detailedRoute;
   List<int> _selectedRouteIds = [];
   List<TransportRoute> _allRoutes = [];
+  final DraggableScrollableController _sheetController = DraggableScrollableController();
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
     
     if (widget.route != null) {
       _fetchRouteDetails();
@@ -45,18 +41,13 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
     }
     
     _fetchVehicles();
-    // Poll for vehicle locations every 5 seconds
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchVehicles());
   }
 
   Future<void> _fetchAllRoutes() async {
     try {
       final routes = await _apiService.getRoutes();
-      if (mounted) {
-        setState(() {
-          _allRoutes = routes;
-        });
-      }
+      if (mounted) setState(() => _allRoutes = routes);
     } catch (e) {
       debugPrint('Error fetching all routes: $e');
     }
@@ -65,17 +56,16 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   @override
   void dispose() {
     _timer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
   Future<void> _fetchRouteDetails() async {
     try {
       final detailed = await _apiService.getRouteDetails(widget.route!.id);
-      setState(() {
-        _detailedRoute = detailed;
-      });
-      _centerMapOnRoute();
+      if (mounted) {
+        setState(() => _detailedRoute = detailed);
+        _centerMapOnRoute();
+      }
     } catch (e) {
       debugPrint('Error fetching route details: $e');
     }
@@ -83,31 +73,20 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
 
   Future<void> _fetchVehicles() async {
     try {
-      if (widget.route == null && _selectedRouteIds.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _vehicles = [];
-            _lastUpdated = DateTime.now();
-          });
-        }
-        return; // Option A: Empty map by default
-      }
-
       List<int>? routeIdsToFetch;
       if (widget.route != null) {
         routeIdsToFetch = [widget.route!.id];
       } else if (_selectedRouteIds.isNotEmpty) {
         routeIdsToFetch = _selectedRouteIds;
+      } else if (widget.route == null && _selectedRouteIds.isEmpty) {
+        if (mounted) setState(() => _vehicles = []);
+        return;
       }
 
       final vehicles = await _apiService.getVehicles(routeIds: routeIdsToFetch);
       if (mounted) {
         setState(() {
-          if (widget.route != null) {
-            _vehicles = vehicles.where((v) => v.route?.id == widget.route!.id).toList();
-          } else {
-            _vehicles = vehicles;
-          }
+          _vehicles = vehicles;
           _lastUpdated = DateTime.now();
         });
       }
@@ -117,72 +96,44 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   }
 
   void _centerMapOnRoute() {
-    if (_detailedRoute != null && _detailedRoute!.stops != null && _detailedRoute!.stops!.isNotEmpty) {
+    if (_detailedRoute?.stops?.isNotEmpty ?? false) {
        _mapController.move(LatLng(_detailedRoute!.stops!.first.latitude, _detailedRoute!.stops!.first.longitude), 13.0);
     }
   }
 
-  void _centerMap() {
+  void _centerOnUser() {
     if (_vehicles.isNotEmpty) {
-      _mapController.move(LatLng(_vehicles.first.latitude, _vehicles.first.longitude), 14.0);
-    } else if (_detailedRoute != null && _detailedRoute!.stops != null && _detailedRoute!.stops!.isNotEmpty) {
-      _mapController.move(LatLng(_detailedRoute!.stops!.first.latitude, _detailedRoute!.stops!.first.longitude), 13.0);
+      _mapController.move(LatLng(_vehicles.first.latitude, _vehicles.first.longitude), 14.5);
     } else {
-       _mapController.move(LatLng(27.7000, 85.3000), 13.0);
+       _mapController.move(const LatLng(27.7000, 85.3000), 13.0);
     }
   }
 
   List<LatLng> _buildPolylinePoints() {
-    // Prefer backend polyline (actual road geometry) if available
-    if (_detailedRoute?.polyline != null && _detailedRoute!.polyline!.isNotEmpty) {
-      return _detailedRoute!.polyline!
-          .map((pt) => LatLng(pt[0], pt[1]))
-          .toList();
+    if (_detailedRoute?.polyline?.isNotEmpty ?? false) {
+      return _detailedRoute!.polyline!.map((pt) => LatLng(pt[0], pt[1])).toList();
     }
-    // Fall back to connecting stops in order
     if (_detailedRoute?.stops != null) {
-      return _detailedRoute!.stops!
-          .map((s) => LatLng(s.latitude, s.longitude))
-          .toList();
+      return _detailedRoute!.stops!.map((s) => LatLng(s.latitude, s.longitude)).toList();
     }
     return [];
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final brandRed = theme.colorScheme.primary;
-    const Color bgWhite = Color(0xFFF5F5F5);
-    final surfaceWhite = theme.colorScheme.surface;
-
     return Scaffold(
-      backgroundColor: bgWhite,
-      appBar: widget.showAppBar ? AppBar(
-        title: Text(widget.route?.name ?? "All Vehicles"),
-      ) : null,
-      drawer: widget.showAppBar ? AppDrawer(
-        selectedIndex: 0,
-        onItemSelected: (index) {
-          if (index != 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MainScreen()),
-            );
-          }
-        },
-      ) : null,
       body: Stack(
         children: [
-          // The Map Layer
+          // 1. The Map
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(
-              initialCenter: LatLng(27.7000, 85.3000), // Kathmandu
+            options: const MapOptions(
+              initialCenter: LatLng(27.7000, 85.3000),
               initialZoom: 13.0,
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.frontend',
               ),
               if (_detailedRoute != null)
@@ -190,269 +141,254 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
                   polylines: [
                     Polyline(
                       points: _buildPolylinePoints(),
-                      color: Colors.blueAccent.withOpacity(0.8),
-                      strokeWidth: 4.5,
-                      borderStrokeWidth: 1.5,
-                      borderColor: Colors.blue[900]!,
-                    )
+                      color: const Color(0xFF985A26),
+                      strokeWidth: 6.0,
+                    ),
                   ],
                 ),
-              if (_detailedRoute != null && _detailedRoute!.stops != null)
-                 MarkerLayer(
-                   markers: _detailedRoute!.stops!.map((s) {
-                     return Marker(
-                       point: LatLng(s.latitude, s.longitude),
-                       width: 12, height: 12,
-                       child: Container(
-                         decoration: BoxDecoration(
-                           color: Colors.white,
-                           shape: BoxShape.circle,
-                           border: Border.all(color: Colors.blueAccent, width: 2.5)
-                         ),
-                       ),
-                     );
-                   }).toList(),
-                 ),
-              MarkerLayer(
-                markers: _vehicles.map((v) {
-                  return Marker(
-                    point: LatLng(v.latitude, v.longitude),
-                    width: 70,
-                    height: 70,
-                    child: _buildAnimatedMarker(v, brandRed),
-                  );
-                }).toList(),
-              ),
+              markerLayer(),
             ],
           ),
 
-          // Top Floating Header - Only show if NO AppBar
+          // 2. Floating Header (Uber Style)
           if (!widget.showAppBar)
             Positioned(
               top: MediaQuery.of(context).padding.top + 16,
               left: 16,
               right: 16,
-              child: _buildFloatingHeader(context, surfaceWhite),
+              child: _buildUberHeader(),
             ),
 
-          // Floating Controls (My Location)
+          // 3. Draggable Scrollable Sheet (Citymapper Style)
+          _buildDraggableSheet(),
+
+          // 4. Floating Action Buttons (Minimalist)
           Positioned(
             right: 16,
-            bottom: 240, // Above bottom sheet
-            child: FloatingActionButton(
-              backgroundColor: surfaceWhite,
-              foregroundColor: Colors.black87,
-              elevation: 4,
-              heroTag: 'centerMap',
-              onPressed: _centerMap,
-              child: const Icon(Icons.my_location),
+            bottom: 120, // Keep above the collapsed sheet handle
+            child: Column(
+              children: [
+                _buildFloatingButton(
+                  icon: Icons.my_location_rounded,
+                  onPressed: _centerOnUser,
+                ),
+                const SizedBox(height: 12),
+                _buildFloatingButton(
+                  icon: Icons.layers_outlined,
+                  onPressed: () {},
+                ),
+              ],
             ),
-          ),
-
-          // Bottom Sheet Panel
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomPanel(surfaceWhite, brandRed),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAnimatedMarker(Vehicle vehicle, Color brandRed) {
+  Widget markerLayer() {
+    return MarkerLayer(
+      markers: [
+        ...(_detailedRoute?.stops ?? []).map((s) => Marker(
+          point: LatLng(s.latitude, s.longitude),
+          width: 24, height: 24,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF985A26), 
+              shape: BoxShape.circle, 
+              border: Border.all(color: Colors.white, width: 2)
+            ),
+            child: const Icon(Icons.directions_bus, color: Colors.white, size: 14),
+          ),
+        )),
+        ..._vehicles.map((v) => Marker(
+          point: LatLng(v.latitude, v.longitude),
+          width: 80, height: 60,
+          child: _buildVehicleMarker(v),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildVehicleMarker(Vehicle v) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Plate Number Badge
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          constraints: const BoxConstraints(maxWidth: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: brandRed, width: 1.5),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0,2))],
+            color: Colors.black, 
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
-            vehicle.plateNumber,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black87),
+            v.plateNumber, 
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, height: 1.2)
           ),
         ),
-        const SizedBox(height: 4),
-        // Pulsing Dot
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            return Container(
-              width: 24 + (_pulseController.value * 8),
-              height: 24 + (_pulseController.value * 8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: brandRed.withOpacity(0.3 + (_pulseController.value * 0.4)),
-                border: Border.all(color: brandRed, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: brandRed.withOpacity(0.5 * _pulseController.value),
-                    blurRadius: 10,
-                    spreadRadius: 5 * _pulseController.value,
-                  )
-                ]
-              ),
-              child: const Center(
-                child: Icon(Icons.directions_bus, color: Colors.white, size: 14),
-              ),
-            );
-          },
+        const SizedBox(height: 2),
+        Container(
+          width: 22, height: 22,
+          decoration: const BoxDecoration(
+            color: Colors.black, 
+            shape: BoxShape.circle,
+          ),
+          child: const Center(
+            child: Icon(Icons.directions_bus, color: Colors.white, size: 14),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildFloatingHeader(BuildContext context, Color surfaceWhite) {
+  Widget _buildUberHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: surfaceWhite.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: AppTheme.glassDecoration.copyWith(borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           if (widget.route != null)
-            IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
-              onPressed: () => Navigator.of(context).pop(),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Icon(Icons.arrow_back_rounded, color: Colors.black87),
             )
           else
-            const SizedBox(width: 16),
+            const Icon(Icons.menu_rounded, color: Colors.black87),
+          const SizedBox(width: 16),
           Expanded(
             child: Text(
-              widget.route?.name ?? (_selectedRouteIds.isEmpty ? "No routes selected" : "${_selectedRouteIds.length} routes selected"),
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
+              widget.route?.name ?? (_selectedRouteIds.isEmpty ? "Track Transit" : "${_selectedRouteIds.length} Routes Tracking"),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black87),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           if (widget.route == null)
             IconButton(
-              icon: Icon(Icons.filter_list, color: _selectedRouteIds.isEmpty ? Colors.black87 : Colors.blue),
+              icon: const Icon(Icons.tune_rounded, color: Colors.black87, size: 20),
               onPressed: _showRouteFilterSheet,
-              tooltip: 'Filter Routes',
-            )
-          else
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.map_outlined, color: Colors.black87, size: 20),
-            )
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
         ],
+      ),
+    ).animate().fadeIn().slideY(begin: -0.2);
+  }
+
+  Widget _buildFloatingButton({required IconData icon, required VoidCallback onPressed}) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 48, width: 48,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Icon(icon, color: Colors.black87, size: 22),
       ),
     );
   }
 
-  Widget _buildBottomPanel(Color surfaceWhite, Color brandRed) {
-    // ... kept identical for brevity
-    return Container(
-        height: 220,
-        decoration: BoxDecoration(
-          color: surfaceWhite,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
-        ),
-        child: Column(
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                height: 4,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+  Widget _buildDraggableSheet() {
+    return DraggableScrollableSheet(
+      controller: _sheetController,
+      initialChildSize: 0.25,
+      minChildSize: 0.1,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
+          ),
+          child: Column(
+            children: [
+              _buildSheetHandle(),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    _buildSheetHeader(),
+                    const SizedBox(height: 24),
+                    if (_vehicles.isEmpty)
+                      const Center(child: Padding(
+                        padding: EdgeInsets.all(40.0),
+                        child: Text("No vehicles active on selected routes", style: TextStyle(color: Colors.black38, fontWeight: FontWeight.w600)),
+                      ))
+                    else
+                      ..._vehicles.map((v) => _buildVehicleListTile(v)),
+                    const SizedBox(height: 40),
+                  ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Live Status",
-                        style: TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${_vehicles.length} Vehicles Active",
-                        style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: brandRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: brandRed.withOpacity(0.5))
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 8, height: 8,
-                          decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 6),
-                        Text('Updated ${timeago.format(_lastUpdated, locale: 'en_short')}', style: TextStyle(color: brandRed, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            ),
-            const Divider(color: Colors.black12, height: 24),
-            // Vehicle List
-            Expanded(
-              child: _vehicles.isEmpty 
-              ? const Center(child: Text("No vehicles actively tracked", style: TextStyle(color: Colors.black54)))
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _vehicles.length,
-                  itemBuilder: (context, index) {
-                    final v = _vehicles[index];
-                    return ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.directions_bus, color: brandRed, size: 20),
-                      ),
-                      title: Text(v.plateNumber, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-                      subtitle: const Text("Tracking En Route", style: TextStyle(color: Colors.black54, fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.black26),
-                      onTap: () {
-                         _mapController.move(LatLng(v.latitude, v.longitude), 16.0);
-                      },
-                    );
-                  },
-                )
-            ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSheetHandle() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        height: 5, width: 40,
+        decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2.5)),
+      ),
+    );
+  }
+
+  Widget _buildSheetHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Transit Status", style: TextStyle(color: Colors.black45, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            const SizedBox(height: 2),
+            Text("${_vehicles.length} En Route", style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.w900)),
           ],
-        )
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(color: AppTheme.neutralGrey, borderRadius: BorderRadius.circular(8)),
+          child: Row(
+            children: [
+              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Text(timeago.format(_lastUpdated, locale: 'en_short'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVehicleListTile(Vehicle v) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.neutralGrey.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        onTap: () {
+          _mapController.move(LatLng(v.latitude, v.longitude), 16.0);
+          _sheetController.animateTo(0.1, duration: 400.ms, curve: Curves.easeOutCubic);
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+          child: const Icon(Icons.directions_bus_filled_rounded, color: Colors.white, size: 20),
+        ),
+        title: Text(v.plateNumber, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        subtitle: Text(v.route?.name ?? "On Duty", style: const TextStyle(color: Colors.black45, fontWeight: FontWeight.w600, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.black26),
+      ),
     );
   }
 
@@ -465,76 +401,42 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.6,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
               child: Column(
                 children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 12),
-                    height: 4,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+                  _buildSheetHandle(),
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Filter Bus Routes",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                    ),
+                    padding: EdgeInsets.all(20.0),
+                    child: Text("Filter Routes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                   ),
-                  const Divider(color: Colors.black12, height: 1),
                   Expanded(
-                    child: _allRoutes.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView.builder(
-                          itemCount: _allRoutes.length,
-                          itemBuilder: (context, index) {
-                            final route = _allRoutes[index];
-                            final isSelected = _selectedRouteIds.contains(route.id);
-                            return CheckboxListTile(
-                              title: Text(route.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(route.type),
-                              value: isSelected,
-                              activeColor: Theme.of(context).colorScheme.primary,
-                              onChanged: (bool? value) {
-                                setModalState(() {
-                                  if (value == true) {
-                                    _selectedRouteIds.add(route.id);
-                                  } else {
-                                    _selectedRouteIds.remove(route.id);
-                                  }
-                                });
-                                // also update parent state to see immediate visual change in header
-                                setState(() {});
-                                _fetchVehicles();
-                              },
-                            );
+                    child: ListView.builder(
+                      itemCount: _allRoutes.length,
+                      itemBuilder: (context, index) {
+                        final route = _allRoutes[index];
+                        final isSelected = _selectedRouteIds.contains(route.id);
+                        return ListTile(
+                          title: Text(route.name, style: TextStyle(fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600)),
+                          subtitle: Text(route.type),
+                          trailing: Icon(isSelected ? Icons.check_circle_rounded : Icons.circle_outlined, color: isSelected ? Colors.black : Colors.black12),
+                          onTap: () {
+                            setModalState(() {
+                              if (isSelected) _selectedRouteIds.remove(route.id);
+                              else _selectedRouteIds.add(route.id);
+                            });
+                            setState(() {});
+                            _fetchVehicles();
                           },
-                        ),
+                        );
+                      },
+                    ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Apply Filter", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
+                    padding: const EdgeInsets.all(20.0),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Apply Filter"),
                     ),
                   )
                 ],

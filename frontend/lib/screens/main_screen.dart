@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:frontend/api_service.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/screens/map_tracking_screen.dart';
@@ -56,194 +57,143 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildProfileTab() {
     if (_currentUser == null) {
-      return const Center(child: CircularProgressIndicator()); 
+      return const Center(child: CircularProgressIndicator(color: Colors.black)); 
     }
 
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header section with gradient background
-          Container(
-            padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [theme.colorScheme.primary, Colors.red[800]!],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _currentUser!.name,
+                    style: theme.textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _currentUser!.email,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ],
               ),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(32),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black12, width: 2),
+                  shape: BoxShape.circle,
+                ),
+                child: CircleAvatar(
+                  radius: 36,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: _currentUser?.profile_picture != null
+                      ? NetworkImage(_apiService.getProfileImageUrl(_currentUser!.profile_picture))
+                      : null,
+                  child: _currentUser?.profile_picture == null
+                      ? const Icon(Icons.person, size: 40, color: Colors.black)
+                      : null,
+                ),
+              ),
+            ],
+          ).animate().fadeIn().slideY(begin: 0.1),
+          
+          const SizedBox(height: 12),
+          
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _currentUser!.role.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 10,
+                letterSpacing: 1.0,
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: CircleAvatar(
-                    radius: 45,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage: _currentUser?.profile_picture != null
-                        ? NetworkImage(_apiService.getProfileImageUrl(_currentUser!.profile_picture))
-                        : null,
-                    child: _currentUser?.profile_picture == null
-                        ? const Icon(Icons.person, size: 50, color: Colors.red)
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _currentUser!.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _currentUser!.email,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _currentUser!.role.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          ).animate().fadeIn(delay: 200.ms),
+          
+          const SizedBox(height: 48),
+          
+          const Text(
+            'Account Info',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.black26, letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 16),
+          _buildProfileItem(Icons.edit_outlined, 'Edit Profile', onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => EditProfileScreen(user: _currentUser!)),
+            ).then((value) {
+              if (value == true) _checkLoginStatus();
+            });
+          }),
+          _buildProfileItem(Icons.security_outlined, 'Security'),
+          _buildProfileItem(Icons.notifications_none_rounded, 'Notifications'),
+          
+          const SizedBox(height: 32),
+          
+          const Text(
+            'Support',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.black26, letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 16),
+          _buildProfileItem(Icons.info_outline_rounded, 'About Samaya Sawari'),
+          _buildProfileItem(Icons.help_outline_rounded, 'Help & Resources'),
+          
+          const SizedBox(height: 40),
+          
+          TextButton.icon(
+            onPressed: () async {
+              await _apiService.logout();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+            icon: const Icon(Icons.logout_rounded, color: Colors.black87),
+            label: const Text('Log out', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
             ),
           ),
           
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Account Settings',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-                const SizedBox(height: 16),
-                _buildProfileItem(Icons.edit, 'Edit Profile', Colors.blue, onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditProfileScreen(user: _currentUser!),
-                    ),
-                  ).then((value) {
-                    if (value == true) _checkLoginStatus();
-                  });
-                }),
-                _buildProfileItem(Icons.security, 'Security & Privacy', Colors.green),
-                _buildProfileItem(Icons.notifications, 'Notifications', Colors.orange),
-                const SizedBox(height: 32),
-                
-                const Text(
-                  'App Information',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-                const SizedBox(height: 16),
-                _buildProfileItem(Icons.info, 'About Samaya Sawari', Colors.teal),
-                _buildProfileItem(Icons.help_center, 'Help & Support', Colors.indigo),
-                const SizedBox(height: 32),
-                
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      await _apiService.logout();
-                      if (mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.logout, color: Colors.red),
-                    label: const Text('LOGOUT', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                      side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Center(
-                  child: Text(
-                    'Version 1.0.0',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
+          const SizedBox(height: 48),
+          const Center(child: Text('Version 2.0.0 (Premium)', style: TextStyle(color: Colors.black12, fontSize: 10, fontWeight: FontWeight.bold))),
         ],
       ),
     );
   }
 
-  Widget _buildProfileItem(IconData icon, String title, Color color, {VoidCallback? onTap}) {
+  Widget _buildProfileItem(IconData icon, String title, {VoidCallback? onTap}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF1F1F1))),
       ),
       child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: Colors.black, size: 24),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black, fontSize: 16),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-        onTap: onTap ?? () {
-          // Implement navigation
-        },
+        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.black26),
+        onTap: onTap ?? () {},
       ),
     );
   }
@@ -254,25 +204,15 @@ class _MainScreenState extends State<MainScreen> {
       builder: (context, constraints) {
         final bool isDesktop = constraints.maxWidth >= 800;
 
-        String title = 'Samaya Sawari';
-        if (_selectedIndex == 0) title = 'Map Tracking';
-        if (_selectedIndex == 1) title = 'All Routes';
-        if (_selectedIndex == 2) title = 'My Profile';
-        if (_selectedIndex == 3) title = 'Admin Dashboard';
-        if (_selectedIndex == 4) title = 'User Management';
-        if (_selectedIndex == 5) title = 'Transport Management';
-        if (_selectedIndex == 6) title = 'Route Management';
-
         List<BottomNavigationBarItem> bottomNavItems = [
-          const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          const BottomNavigationBarItem(icon: Icon(Icons.directions_bus), label: 'Routes'),
-          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          const BottomNavigationBarItem(icon: Icon(Icons.map_outlined, size: 24), activeIcon: Icon(Icons.map_rounded, size: 24), label: 'Map'),
+          const BottomNavigationBarItem(icon: Icon(Icons.directions_bus_outlined, size: 24), activeIcon: Icon(Icons.directions_bus_rounded, size: 24), label: 'Routes'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded, size: 24), activeIcon: Icon(Icons.person_rounded, size: 24), label: 'Profile'),
         ];
         if (_currentUser?.role == 'admin') {
-          bottomNavItems.add(const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'));
+          bottomNavItems.add(const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 24), activeIcon: Icon(Icons.admin_panel_settings_rounded, size: 24), label: 'Admin'));
         }
 
-        // Ensure safe index mapping if role changes momentarily
         int safeIndex = _selectedIndex < bottomNavItems.length ? _selectedIndex : 0;
 
         if (isDesktop) {
@@ -310,41 +250,110 @@ class _MainScreenState extends State<MainScreen> {
         }
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(title),
-          ),
           drawer: AppDrawer(
             selectedIndex: _selectedIndex,
             onItemSelected: _onItemTapped,
           ),
-          body: SafeArea(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                const MapTrackingScreen(showAppBar: false),
-                const RouteListingScreen(showAppBar: false),
-                _buildProfileTab(),
-                if (_currentUser?.role == 'admin') ...[
-                  const AdminDashboardScreen(),
-                  const UserManagementScreen(),
-                  const VehicleManagementScreen(),
-                  const RouteManagementScreen(),
-                ] else ...[
-                  const SizedBox.shrink(),
-                  const SizedBox.shrink(),
-                  const SizedBox.shrink(),
-                  const SizedBox.shrink(),
-                ]
-              ],
-            ),
+          body: Stack(
+            children: [
+              IndexedStack(
+                index: _selectedIndex,
+                children: [
+                  const MapTrackingScreen(showAppBar: false),
+                  const RouteListingScreen(showAppBar: false),
+                  SafeArea(child: _buildProfileTab()),
+                  if (_currentUser?.role == 'admin') ...[
+                    const AdminDashboardScreen(),
+                    const UserManagementScreen(),
+                    const VehicleManagementScreen(),
+                    const RouteManagementScreen(),
+                  ] else ...[
+                    const SizedBox.shrink(),
+                    const SizedBox.shrink(),
+                    const SizedBox.shrink(),
+                    const SizedBox.shrink(),
+                  ]
+                ],
+              ),
+              // Floating "Where to?" Search Bar for Map tab
+              if (_selectedIndex == 0)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () {
+                      // Trigger search or route selection
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search_rounded, color: Colors.black),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Where to?',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            height: 24,
+                            width: 1,
+                            color: Colors.black12,
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          const Icon(Icons.schedule_rounded, color: Colors.black),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Now',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Icon(Icons.keyboard_arrow_down_rounded),
+                        ],
+                      ),
+                    ),
+                  ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2),
+                ),
+            ],
           ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: safeIndex,
-            type: BottomNavigationBarType.fixed,
-            onTap: _onItemTapped,
-            selectedItemColor: Theme.of(context).colorScheme.primary,
-            unselectedItemColor: Colors.grey,
-            items: bottomNavItems,
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.black.withOpacity(0.05))),
+            ),
+            child: BottomNavigationBar(
+              currentIndex: safeIndex,
+              type: BottomNavigationBarType.fixed,
+              onTap: _onItemTapped,
+              selectedItemColor: Colors.black,
+              unselectedItemColor: Colors.black26,
+              selectedFontSize: 12,
+              unselectedFontSize: 12,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.2),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              items: bottomNavItems,
+            ),
           ),
         );
       },

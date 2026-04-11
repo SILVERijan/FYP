@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../models/transport_route.dart';
 import '../api_service.dart';
 import 'map_tracking_screen.dart';
-import 'package:frontend/widgets/app_drawer.dart';
-import 'package:frontend/screens/main_screen.dart';
+import '../theme/app_theme.dart';
 
 class RouteListingScreen extends StatefulWidget {
   final bool showAppBar;
@@ -16,76 +16,179 @@ class RouteListingScreen extends StatefulWidget {
 
 class _RouteListingScreenState extends State<RouteListingScreen> {
   final ApiService _apiService = ApiService();
-  late Future<List<TransportRoute>> _routesFuture;
+  List<TransportRoute> _allRoutes = [];
+  List<TransportRoute> _filteredRoutes = [];
+  bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _routesFuture = _apiService.getRoutes();
+    _fetchRoutes();
+  }
+
+  Future<void> _fetchRoutes() async {
+    try {
+      final routes = await _apiService.getRoutes();
+      setState(() {
+        _allRoutes = routes;
+        _filteredRoutes = routes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _filterRoutes(String query) {
+    setState(() {
+      _filteredRoutes = _allRoutes
+          .where((r) => r.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: widget.showAppBar ? AppBar(
-        title: const Text('Transport Routes'),
-      ) : null,
-      drawer: widget.showAppBar ? AppDrawer(
-        selectedIndex: 1,
-        onItemSelected: (index) {
-          if (index != 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MainScreen()),
-            );
-          }
-        },
+        title: const Text('All Routes'),
+        elevation: 0,
       ) : null,
       body: SafeArea(
-        child: FutureBuilder<List<TransportRoute>>(
-        future: _routesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No routes found.'));
-          }
-
-          final routes = snapshot.data!;
-          return ListView.builder(
-            itemCount: routes.length,
-            itemBuilder: (context, index) {
-              final route = routes[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: Icon(Icons.directions_bus, color: Theme.of(context).colorScheme.primary, size: 32),
-                  title: Text(route.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(route.type),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    if (widget.onRouteSelected != null) {
-                      widget.onRouteSelected!(route);
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MapTrackingScreen(route: route),
-                        ),
-                      );
-                    }
-                  },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!widget.showAppBar)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                child: Text('Transit Routes', style: theme.textTheme.displayLarge?.copyWith(fontSize: 28)),
+              ).animate().fadeIn().slideX(begin: -0.1),
+            
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _filterRoutes,
+                decoration: InputDecoration(
+                  hintText: 'Search for a route...',
+                  prefixIcon: const Icon(Icons.search_rounded, color: Colors.black54),
+                  hintStyle: const TextStyle(color: Colors.black26),
+                  filled: true,
+                  fillColor: AppTheme.neutralGrey.withOpacity(0.5),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 ),
-              );
-            },
-          );
-        },
+              ),
+            ).animate().fadeIn(delay: 100.ms),
+            
+            Expanded(
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                : _filteredRoutes.isEmpty
+                  ? const Center(child: Text('No routes found', style: TextStyle(color: Colors.black38, fontWeight: FontWeight.bold)))
+                  : ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      itemCount: _filteredRoutes.length,
+                      itemBuilder: (context, index) {
+                        final route = _filteredRoutes[index];
+                        return _buildRouteItem(route, theme)
+                          .animate()
+                          .fadeIn(delay: (index * 50).ms, duration: 400.ms)
+                          .slideX(begin: 0.05);
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
-    ),
+    );
+  }
+
+  Widget _buildRouteItem(TransportRoute route, ThemeData theme) {
+    // Dynamic color coding based on route type (Citymapper style)
+    Color typeColor = Colors.black;
+    if (route.type.toLowerCase().contains('bus')) typeColor = AppTheme.accentCrimson;
+    if (route.type.toLowerCase().contains('micro')) typeColor = Colors.blueAccent;
+    if (route.type.toLowerCase().contains('express')) typeColor = Colors.deepPurple;
+
+    return GestureDetector(
+      onTap: () {
+        if (widget.onRouteSelected != null) {
+          widget.onRouteSelected!(route);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => MapTrackingScreen(route: route)),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppTheme.neutralGrey),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  color: typeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Icon(
+                    route.type.toLowerCase().contains('bus') ? Icons.directions_bus_rounded : Icons.airport_shuttle_rounded, 
+                    color: typeColor, 
+                    size: 24
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      route.name,
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: typeColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            route.type.toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Real-time tracking',
+                          style: TextStyle(color: Colors.black38, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.black12),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
