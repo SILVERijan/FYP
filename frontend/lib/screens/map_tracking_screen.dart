@@ -196,9 +196,12 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
           width: 24, height: 24,
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF985A26), 
+              color: _detailedRoute?.color != null 
+                  ? Color(int.parse(_detailedRoute!.color.replaceFirst('#', '0xFF')))
+                  : const Color(0xFF985A26),
               shape: BoxShape.circle, 
-              border: Border.all(color: Colors.white, width: 2)
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: const Offset(0, 2))],
             ),
             child: const Icon(Icons.directions_bus, color: Colors.white, size: 14),
           ),

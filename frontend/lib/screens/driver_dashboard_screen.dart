@@ -211,14 +211,16 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                     MarkerLayer(
                       markers: routeStops.map((s) => Marker(
                         point: LatLng(s.latitude, s.longitude),
-                        width: 12,
-                        height: 12,
+                        width: 20,
+                        height: 20,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _getRouteColor(),
                             shape: BoxShape.circle,
-                            border: Border.all(color: _getRouteColor(), width: 2),
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3, offset: const Offset(0, 1))],
                           ),
+                          child: const Icon(Icons.directions_bus, color: Colors.white, size: 10),
                         ),
                       )).toList(),
                     ),

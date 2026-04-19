@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use App\Models\Stop;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
@@ -80,7 +81,7 @@ class AdminController extends Controller
     // === ROUTES ===
     public function getRoutes()
     {
-        return response()->json(['data' => TransportRoute::all()]);
+        return response()->json(['data' => TransportRoute::with('stops')->get()]);
     }
 
     public function createRoute(Request $request)
@@ -106,11 +107,7 @@ class AdminController extends Controller
 
             if (isset($validated['stops'])) {
                 foreach ($validated['stops'] as $index => $stopData) {
-                    $stop = Stop::create([
-                        'name' => $stopData['name'],
-                        'latitude' => $stopData['latitude'],
-                        'longitude' => $stopData['longitude'],
-                    ]);
+                    $stop = $this->findOrCreateStop($stopData);
                     $route->stops()->attach($stop->id, ['sort_order' => $index]);
                 }
             }
@@ -137,15 +134,9 @@ class AdminController extends Controller
             $route->update($validated);
 
             if (isset($validated['stops'])) {
-                // For simplicity, we'll re-create stops for the route
-                // In a production app, you might want to update existing ones
                 $route->stops()->detach();
                 foreach ($validated['stops'] as $index => $stopData) {
-                    $stop = Stop::create([
-                        'name' => $stopData['name'],
-                        'latitude' => $stopData['latitude'],
-                        'longitude' => $stopData['longitude'],
-                    ]);
+                    $stop = $this->findOrCreateStop($stopData);
                     $route->stops()->attach($stop->id, ['sort_order' => $index]);
                 }
             }
@@ -208,5 +199,24 @@ class AdminController extends Controller
         $vehicle = Vehicle::findOrFail($id);
         $vehicle->delete();
         return response()->json(['message' => 'Vehicle deleted successfully']);
+    }
+
+    private function findOrCreateStop($data)
+    {
+        // Check for an existing stop within ~20 meters (approx 0.0002 degrees)
+        $threshold = 0.0002;
+        $existing = Stop::whereBetween('latitude', [$data['latitude'] - $threshold, $data['latitude'] + $threshold])
+            ->whereBetween('longitude', [$data['longitude'] - $threshold, $data['longitude'] + $threshold])
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return Stop::create([
+            'name' => $data['name'],
+            'latitude' => $data['latitude'],
+            'longitude' => $data['longitude'],
+        ]);
     }
 }

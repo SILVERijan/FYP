@@ -23,7 +23,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
   
   String _selectedType = 'Bus';
   Color _selectedColor = Colors.red;
-  List<LatLng> _stops = [];
+  List<Map<String, dynamic>> _stops = []; // Changed from LatLng to Map to store metadata
   List<LatLng> _polylinePoints = [];
   bool _isProcessing = false;
   bool _isSaving = false;
@@ -36,7 +36,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
       _selectedType = widget.route!.type;
       _selectedColor = _parseHexColor(widget.route!.color);
       if (widget.route!.stops != null) {
-        _stops = widget.route!.stops!.map((s) => LatLng(s.latitude, s.longitude)).toList();
+        _stops = widget.route!.stops!.map((s) => {
+          'point': LatLng(s.latitude, s.longitude),
+          'name': s.name
+        }).toList();
       }
       if (widget.route!.polyline != null) {
         _polylinePoints = widget.route!.polyline!.map((p) => LatLng(p[0], p[1])).toList();
@@ -85,7 +88,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
 
   void _handleTap(TapPosition tapPosition, LatLng point) async {
     setState(() {
-      _stops.add(point);
+      _stops.add({
+        'point': point,
+        'name': 'Stop ${_stops.length + 1}'
+      });
     });
 
     if (_stops.length == 1) {
@@ -93,7 +99,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
         _polylinePoints.add(point);
       });
     } else {
-      await _fetchOSRMRoute(_stops[_stops.length - 2], point);
+      await _fetchOSRMRoute(_stops[_stops.length - 2]['point'], point);
     }
   }
 
@@ -106,20 +112,49 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
     }
   }
 
+  void _renameStop(int index) {
+    final TextEditingController renameController = TextEditingController(text: _stops[index]['name']);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Rename Stop ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: renameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Stop Name'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (renameController.text.isNotEmpty) {
+                setState(() {
+                  _stops[index]['name'] = renameController.text;
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _rebuildPolyline() async {
     if (_stops.isEmpty) {
       setState(() => _polylinePoints = []);
       return;
     }
     
-    List<LatLng> newPoly = [_stops.first];
+    List<LatLng> newPoly = [_stops.first['point']];
     setState(() {
       _polylinePoints = newPoly;
       _isProcessing = true;
     });
 
     for (int i = 0; i < _stops.length - 1; i++) {
-      await _fetchOSRMRoute(_stops[i], _stops[i+1]);
+      await _fetchOSRMRoute(_stops[i]['point'], _stops[i+1]['point']);
     }
     
     setState(() => _isProcessing = false);
@@ -144,9 +179,9 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
         'color': _colorToHex(_selectedColor),
         'polyline': _polylinePoints.map((p) => [p.latitude, p.longitude]).toList(),
         'stops': _stops.map((s) => {
-          'name': 'Stop ${_stops.indexOf(s) + 1}',
-          'latitude': s.latitude,
-          'longitude': s.longitude
+          'name': s['name'],
+          'latitude': s['point'].latitude,
+          'longitude': s['point'].longitude
         }).toList(),
       };
 
@@ -276,20 +311,35 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                       MarkerLayer(
                         markers: _stops.asMap().entries.map((entry) {
                           int idx = entry.key;
-                          LatLng point = entry.value;
+                          final stop = entry.value;
+                          LatLng point = stop['point'];
                           return Marker(
                             point: point,
-                            width: 30,
-                            height: 30,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: idx == 0 ? Colors.green : (idx == _stops.length - 1 ? Colors.red : Colors.orange),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                              ),
-                              child: Center(
-                                child: Text('${idx + 1}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            width: 28,
+                            height: 28,
+                            child: GestureDetector(
+                              onTap: () => _renameStop(idx),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                                ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    const Icon(Icons.directions_bus, color: Colors.white, size: 14),
+                                    Positioned(
+                                      bottom: -2, right: -2,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                        child: Text('${idx + 1}', style: TextStyle(color: _selectedColor, fontSize: 8, fontWeight: FontWeight.w900)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
