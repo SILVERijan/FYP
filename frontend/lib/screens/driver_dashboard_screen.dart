@@ -26,6 +26,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   bool _isTracking = false;
   bool _isLoading = true;
   bool _autoFollow = true;
+  bool _showRoute = true;
   
   LatLng _currentLocation = const LatLng(27.7172, 85.3240); // Default Kathmandu
   Timer? _timer;
@@ -43,6 +44,20 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     _timer?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  List<LatLng> _getRoutePoints() {
+    if (_selectedVehicle?.route?.polyline == null) return [];
+    return _selectedVehicle!.route!.polyline!.map((pt) => LatLng(pt[0], pt[1])).toList();
+  }
+
+  Color _getRouteColor() {
+    if (_selectedVehicle?.route?.color == null) return Colors.blue;
+    try {
+      return Color(int.parse(_selectedVehicle!.route!.color.replaceFirst('#', '0xFF')));
+    } catch (e) {
+      return Colors.blue;
+    }
   }
 
   Future<void> _initLocation() async {
@@ -152,6 +167,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final routePoints = _getRoutePoints();
+    final routeStops = _selectedVehicle?.route?.stops ?? [];
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: _isLoading 
@@ -175,6 +193,36 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.example.frontend',
                   ),
+                  
+                  // Route Polyline
+                  if (_showRoute && routePoints.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: routePoints,
+                          color: _getRouteColor(),
+                          strokeWidth: 5.0,
+                        ),
+                      ],
+                    ),
+
+                  // Route Stops
+                  if (_showRoute && routeStops.isNotEmpty)
+                    MarkerLayer(
+                      markers: routeStops.map((s) => Marker(
+                        point: LatLng(s.latitude, s.longitude),
+                        width: 12,
+                        height: 12,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _getRouteColor(), width: 2),
+                          ),
+                        ),
+                      )).toList(),
+                    ),
+
                   MarkerLayer(
                     markers: [
                       Marker(
@@ -207,10 +255,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               // 4. FLOATING ACTION BUTTONS (Recenter)
               if (!_autoFollow)
                 Positioned(
-                  bottom: 300,
+                  bottom: 340,
                   right: 16,
                   child: FloatingActionButton(
                     heroTag: 'recenter',
+                    mini: true,
                     backgroundColor: Colors.white,
                     onPressed: () {
                       setState(() => _autoFollow = true);
@@ -301,7 +350,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Vehicle Dropdown
+              // 1. Vehicle Selector
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
@@ -312,7 +361,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   child: DropdownButton<Vehicle>(
                     value: _selectedVehicle,
                     isExpanded: true,
-                    hint: const Text("Choose Vehicle", style: TextStyle(fontWeight: FontWeight.bold)),
+                    hint: const Text("Choose Your Vehicle", style: TextStyle(fontWeight: FontWeight.bold)),
                     items: _vehicles.map((v) => DropdownMenuItem(
                       value: v,
                       child: Text(v.plateNumber, style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -321,9 +370,37 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // 2. Map Layers Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.layers_outlined, size: 18, color: Colors.blue[800]),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "Route Navigation Overlay",
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: -0.2),
+                      ),
+                    ],
+                  ),
+                  _selectedVehicle?.route == null
+                    ? const Text("No route", style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold))
+                    : Switch.adaptive(
+                        value: _showRoute,
+                        activeColor: _getRouteColor(),
+                        onChanged: (v) => setState(() => _showRoute = v),
+                      ),
+                ],
+              ),
               const SizedBox(height: 20),
               
-              // Tracking Toggle
+              const Divider(height: 1),
+              const SizedBox(height: 20),
+
+              // 3. Tracking Control Area
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -331,33 +408,51 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _isTracking ? "ONLINE" : "OFFLINE",
+                        _isTracking ? "LIVE" : "START",
                         style: TextStyle(
-                          fontSize: 22, 
+                          fontSize: 24, 
                           fontWeight: FontWeight.w900, 
-                          color: _isTracking ? Colors.green : Colors.black26,
-                          letterSpacing: 1,
+                          color: _isTracking ? Colors.green : Colors.black,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      Text(_statusMessage, style: const TextStyle(fontSize: 10, color: Colors.black38, fontWeight: FontWeight.bold)),
+                      Text(
+                        _selectedVehicle?.route != null 
+                            ? "On Route: ${_selectedVehicle!.route!.name}" 
+                            : _statusMessage, 
+                        style: const TextStyle(fontSize: 11, color: Colors.black45, fontWeight: FontWeight.w600)
+                      ),
                     ],
                   ),
-                  Transform.scale(
-                    scale: 1.4,
-                    child: Switch.adaptive(
-                      value: _isTracking,
-                      activeColor: Colors.green,
-                      onChanged: _toggleTracking,
+                  GestureDetector(
+                    onTap: () => _toggleTracking(!_isTracking),
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: _isTracking ? Colors.red.withOpacity(0.1) : Colors.green,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                           if (!_isTracking) BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))
+                        ],
+                      ),
+                      child: Icon(
+                        _isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                        color: _isTracking ? Colors.red : Colors.white,
+                        size: 36,
+                      ).animate(target: _isTracking ? 1 : 0).shimmer(),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
               if (_isTracking)
-                const LinearProgressIndicator(
-                  backgroundColor: Colors.transparent,
-                  color: Colors.green,
-                ).animate().shimmer(duration: 2.seconds),
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: const LinearProgressIndicator(
+                    backgroundColor: Colors.transparent,
+                    color: Colors.green,
+                  ).animate().shimmer(duration: 2.seconds),
+                ),
             ],
           ),
         ),

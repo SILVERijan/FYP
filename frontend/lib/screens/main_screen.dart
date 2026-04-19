@@ -209,20 +209,55 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.black)));
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isDesktop = constraints.maxWidth >= 800;
 
-        List<BottomNavigationBarItem> bottomNavItems = [
-          const BottomNavigationBarItem(icon: Icon(Icons.map_outlined, size: 24), activeIcon: Icon(Icons.map_rounded, size: 24), label: 'Map'),
-          const BottomNavigationBarItem(icon: Icon(Icons.directions_bus_outlined, size: 24), activeIcon: Icon(Icons.directions_bus_rounded, size: 24), label: 'Routes'),
-          const BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded, size: 24), activeIcon: Icon(Icons.person_rounded, size: 24), label: 'Profile'),
+        // 1. DYNAMICALLY ASSEMBLE TABS
+        final List<Map<String, dynamic>> primaryTabs = [
+          {'label': 'Map', 'icon': Icons.map_outlined, 'activeIcon': Icons.map_rounded, 'screen': const MapTrackingScreen(showAppBar: false)},
+          {'label': 'Routes', 'icon': Icons.directions_bus_outlined, 'activeIcon': Icons.directions_bus_rounded, 'screen': const RouteListingScreen(showAppBar: false)},
         ];
+
+        // Insert Driver Dashboard if user is Driver or Admin
+        if (_currentUser!.role == 'driver' || _currentUser!.role == 'admin') {
+          primaryTabs.add({
+            'label': 'Driver', 
+            'icon': Icons.sensors_outlined, 
+            'activeIcon': Icons.sensors_rounded, 
+            'screen': DriverDashboardScreen(user: _currentUser!)
+          });
+        }
+
+        primaryTabs.add({'label': 'Profile', 'icon': Icons.person_outline_rounded, 'activeIcon': Icons.person_rounded, 'screen': SafeArea(child: _buildProfileTab())});
+
+        // 2. BUILD BOTTOM NAV ITEMS
+        List<BottomNavigationBarItem> bottomNavItems = primaryTabs.map((tab) => BottomNavigationBarItem(
+          icon: Icon(tab['icon'], size: 24), 
+          activeIcon: Icon(tab['activeIcon'], size: 24), 
+          label: tab['label']
+        )).toList();
+
         if (_currentUser?.role == 'admin') {
           bottomNavItems.add(const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 24), activeIcon: Icon(Icons.admin_panel_settings_rounded, size: 24), label: 'Admin'));
         }
 
-        int safeIndex = _selectedIndex < bottomNavItems.length ? _selectedIndex : 0;
+        // 3. ASSEMBLE SCREEN STACK
+        final List<Widget> screens = primaryTabs.map<Widget>((tab) => tab['screen'] as Widget).toList();
+        if (_currentUser?.role == 'admin') {
+          screens.addAll([
+            const AdminDashboardScreen(),
+            const UserManagementScreen(),
+            const VehicleManagementScreen(),
+            const RouteManagementScreen(),
+          ]);
+        }
+
+        int safeIndex = _selectedIndex < screens.length ? _selectedIndex : 0;
 
         if (isDesktop) {
           return Scaffold(
@@ -234,28 +269,8 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 Expanded(
                   child: IndexedStack(
-                    index: _selectedIndex,
-                    children: [
-                      const MapTrackingScreen(showAppBar: false),
-                      const DesktopRoutesDashboard(),
-                      SafeArea(child: _buildProfileTab()),
-                      if (_currentUser?.role == 'admin') ...[
-                        const AdminDashboardScreen(),
-                        const UserManagementScreen(),
-                        const VehicleManagementScreen(),
-                        const RouteManagementScreen(),
-                        DriverDashboardScreen(user: _currentUser!),
-                      ] else ...[
-                        const SizedBox.shrink(),
-                        const SizedBox.shrink(),
-                        const SizedBox.shrink(),
-                        const SizedBox.shrink(),
-                        if (_currentUser?.role == 'driver')
-                          DriverDashboardScreen(user: _currentUser!)
-                        else
-                          const SizedBox.shrink(),
-                      ]
-                    ],
+                    index: safeIndex,
+                    children: screens,
                   ),
                 ),
               ],
@@ -271,31 +286,11 @@ class _MainScreenState extends State<MainScreen> {
           body: Stack(
             children: [
               IndexedStack(
-                index: _selectedIndex,
-                children: [
-                  const MapTrackingScreen(showAppBar: false),
-                  const RouteListingScreen(showAppBar: false),
-                  SafeArea(child: _buildProfileTab()),
-                  if (_currentUser?.role == 'admin') ...[
-                    const AdminDashboardScreen(),
-                    const UserManagementScreen(),
-                    const VehicleManagementScreen(),
-                    const RouteManagementScreen(),
-                    DriverDashboardScreen(user: _currentUser!),
-                  ] else ...[
-                    const SizedBox.shrink(),
-                    const SizedBox.shrink(),
-                    const SizedBox.shrink(),
-                    const SizedBox.shrink(),
-                    if (_currentUser?.role == 'driver')
-                      DriverDashboardScreen(user: _currentUser!)
-                    else
-                      const SizedBox.shrink(),
-                  ]
-                ],
+                index: safeIndex,
+                children: screens,
               ),
               // Floating "Where to?" Search Bar for Map tab
-              if (_selectedIndex == 0)
+              if (safeIndex == 0)
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 16,
                   left: 16,

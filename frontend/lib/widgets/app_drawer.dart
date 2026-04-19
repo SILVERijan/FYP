@@ -68,6 +68,7 @@ class AppDrawer extends StatelessWidget {
               
               const SizedBox(height: 8),
               
+              // 1. PRIMARY NAVIGATION
               _DrawerItem(
                 icon: Icons.map_outlined,
                 activeIcon: Icons.map_rounded,
@@ -88,41 +89,29 @@ class AppDrawer extends StatelessWidget {
                   onItemSelected(1);
                 },
               ),
+              
+              if (user?.role == 'driver' || user?.role == 'admin')
+                _DrawerItem(
+                  icon: Icons.sensors_outlined,
+                  activeIcon: Icons.sensors_rounded,
+                  label: 'Driver Dashboard',
+                  isSelected: selectedIndex == 2,
+                  onTap: () {
+                    Navigator.pop(context);
+                    onItemSelected(2);
+                  },
+                ),
+
               _DrawerItem(
                 icon: Icons.person_outline_rounded,
                 activeIcon: Icons.person_rounded,
                 label: 'Profile Settings',
-                isSelected: selectedIndex == 2,
+                isSelected: selectedIndex == ( (user?.role == 'driver' || user?.role == 'admin') ? 3 : 2),
                 onTap: () {
                   Navigator.pop(context);
-                  onItemSelected(2);
+                  onItemSelected((user?.role == 'driver' || user?.role == 'admin') ? 3 : 2);
                 },
               ),
-              
-              if (user?.role == 'driver') ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(24, 32, 24, 12),
-                  child: Text(
-                    'DRIVER CONTROLS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.black26,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 200.ms),
-                _DrawerItem(
-                  icon: Icons.sensors_outlined,
-                  activeIcon: Icons.sensors_rounded,
-                  label: 'Live Tracking Dashboard',
-                  isSelected: selectedIndex == 7,
-                  onTap: () {
-                    Navigator.pop(context);
-                    onItemSelected(7);
-                  },
-                ),
-              ],
               
               if (user?.role == 'admin') ...[
                 const Padding(
@@ -141,16 +130,6 @@ class AppDrawer extends StatelessWidget {
                   icon: Icons.dashboard_outlined,
                   activeIcon: Icons.dashboard_rounded,
                   label: 'Analytics Dashboard',
-                  isSelected: selectedIndex == 3,
-                  onTap: () {
-                    Navigator.pop(context);
-                    onItemSelected(3);
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.people_outline_rounded,
-                  activeIcon: Icons.people_rounded,
-                  label: 'User Management',
                   isSelected: selectedIndex == 4,
                   onTap: () {
                     Navigator.pop(context);
@@ -158,9 +137,9 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _DrawerItem(
-                  icon: Icons.directions_car_outlined,
-                  activeIcon: Icons.directions_car_rounded,
-                  label: 'Transport Fleet',
+                  icon: Icons.people_outline_rounded,
+                  activeIcon: Icons.people_rounded,
+                  label: 'User Management',
                   isSelected: selectedIndex == 5,
                   onTap: () {
                     Navigator.pop(context);
@@ -168,13 +147,23 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _DrawerItem(
-                  icon: Icons.alt_route_outlined,
-                  activeIcon: Icons.alt_route_rounded,
-                  label: 'Route Manager',
+                  icon: Icons.directions_car_outlined,
+                  activeIcon: Icons.directions_car_rounded,
+                  label: 'Transport Fleet',
                   isSelected: selectedIndex == 6,
                   onTap: () {
                     Navigator.pop(context);
                     onItemSelected(6);
+                  },
+                ),
+                _DrawerItem(
+                  icon: Icons.alt_route_outlined,
+                  activeIcon: Icons.alt_route_rounded,
+                  label: 'Route Manager',
+                  isSelected: selectedIndex == 7,
+                  onTap: () {
+                    Navigator.pop(context);
+                    onItemSelected(7);
                   },
                 ),
               ],

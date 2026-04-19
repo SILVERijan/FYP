@@ -33,9 +33,9 @@ class DriverController extends Controller
 
     public function getMyVehicles()
     {
-        // For now, return all vehicles. In the future, this could be filtered by company.
+        // Return vehicles with their assigned route relationship eager-loaded
         return response()->json([
-            'data' => Vehicle::all()
+            'data' => Vehicle::with('route')->get()
         ]);
     }
 }
