@@ -13,6 +13,9 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
   List<dynamic> _vehicles = [];
   List<dynamic> _routes = [];
   bool _isLoading = true;
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalVehicles = 0;
 
   @override
   void initState() {
@@ -20,17 +23,24 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
     _fetchData();
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchData({int page = 1}) async {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        _apiService.getAdminVehicles(),
-        _apiService.getAdminRoutes(),
+        _apiService.getAdminVehicles(page: page),
+        _apiService.getAdminRoutes(page: 1), // Fetch first 15 routes for dropdown
       ]);
       if (mounted) {
         setState(() {
-          _vehicles = results[0];
-          _routes = results[1];
+          final vehResponse = results[0] as Map<String, dynamic>;
+          final routeResponse = results[1] as Map<String, dynamic>;
+
+          _vehicles = vehResponse['data'];
+          _currentPage = vehResponse['current_page'];
+          _lastPage = vehResponse['last_page'];
+          _totalVehicles = vehResponse['total'] ?? _vehicles.length;
+
+          _routes = routeResponse['data'];
           _isLoading = false;
         });
       }
@@ -162,7 +172,7 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
                     await _apiService.createAdminVehicle(data);
                   }
                   if (mounted) Navigator.pop(ctx);
-                  _fetchData();
+                  _fetchData(page: _currentPage);
                 } catch (e) {
                   setDialogState(() => saving = false);
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -200,7 +210,7 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               await _apiService.deleteAdminVehicle(id);
-              _fetchData();
+              _fetchData(page: _currentPage);
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: const Text('Delete'),
@@ -272,7 +282,7 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('Transport Management', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
                     const SizedBox(height: 8),
-                    Text('${_vehicles.length} vehicle${_vehicles.length != 1 ? 's' : ''} registered', style: const TextStyle(fontSize: 16, color: Colors.white70)),
+                    Text('$_totalVehicles vehicle${_totalVehicles != 1 ? 's' : ''} registered', style: const TextStyle(fontSize: 16, color: Colors.white70)),
                   ]),
                   ElevatedButton.icon(
                     onPressed: () => _showVehicleDialog(),
@@ -372,6 +382,39 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
                           ),
                         ),
             ),
+
+            // Pagination Bar
+            if (_lastPage > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Page $_currentPage of $_lastPage', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _currentPage > 1 ? () => _fetchData(page: _currentPage - 1) : null,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _currentPage < _lastPage ? () => _fetchData(page: _currentPage + 1) : null,
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

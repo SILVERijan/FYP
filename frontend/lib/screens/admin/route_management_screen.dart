@@ -14,6 +14,9 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
   final ApiService _apiService = ApiService();
   List<dynamic> _routes = [];
   bool _isLoading = true;
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalRoutes = 0;
 
   @override
   void initState() {
@@ -21,11 +24,19 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
     _fetchRoutes();
   }
 
-  Future<void> _fetchRoutes() async {
+  Future<void> _fetchRoutes({int page = 1}) async {
     setState(() => _isLoading = true);
     try {
-      final routes = await _apiService.getAdminRoutes();
-      if (mounted) setState(() { _routes = routes; _isLoading = false; });
+      final response = await _apiService.getAdminRoutes(page: page);
+      if (mounted) {
+        setState(() {
+          _routes = response['data'];
+          _currentPage = response['current_page'];
+          _lastPage = response['last_page'];
+          _totalRoutes = response['total'] ?? response['data'].length;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -49,7 +60,7 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
     );
 
     if (result == true) {
-      _fetchRoutes();
+      _fetchRoutes(page: _currentPage);
     }
   }
 
@@ -74,7 +85,7 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               await _apiService.deleteAdminRoute(id);
-              _fetchRoutes();
+              _fetchRoutes(page: _currentPage);
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: const Text('Delete'),
@@ -136,7 +147,7 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('Route Management', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
                     const SizedBox(height: 8),
-                    Text('${_routes.length} route${_routes.length != 1 ? 's' : ''} configured', style: const TextStyle(fontSize: 16, color: Colors.white70)),
+                    Text('$_totalRoutes route${_totalRoutes != 1 ? 's' : ''} configured', style: const TextStyle(fontSize: 16, color: Colors.white70)),
                   ]),
                   ElevatedButton.icon(
                     onPressed: () => _navigateToEditor(),
@@ -216,6 +227,39 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                           ),
                         ),
             ),
+
+            // Pagination Bar
+            if (_lastPage > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Page $_currentPage of $_lastPage', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _currentPage > 1 ? () => _fetchRoutes(page: _currentPage - 1) : null,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _currentPage < _lastPage ? () => _fetchRoutes(page: _currentPage + 1) : null,
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

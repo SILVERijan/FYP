@@ -12,6 +12,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   final ApiService _apiService = ApiService();
   List<dynamic> _users = [];
   bool _isLoading = true;
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalUsers = 0;
 
   @override
   void initState() {
@@ -19,11 +22,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     _fetchUsers();
   }
 
-  Future<void> _fetchUsers() async {
+  Future<void> _fetchUsers({int page = 1}) async {
     setState(() => _isLoading = true);
     try {
-      final users = await _apiService.getAdminUsers();
-      if (mounted) setState(() { _users = users; _isLoading = false; });
+      final response = await _apiService.getAdminUsers(page: page);
+      if (mounted) {
+        setState(() {
+          _users = response['data'];
+          _currentPage = response['current_page'];
+          _lastPage = response['last_page'];
+          _totalUsers = response['total'] ?? response['data'].length;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -171,7 +182,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     });
                   }
                   if (mounted) Navigator.pop(ctx);
-                  _fetchUsers();
+                  _fetchUsers(page: _currentPage);
                 } catch (e) {
                   setDialogState(() => saving = false);
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -211,7 +222,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               await _apiService.deleteAdminUser(id);
-              _fetchUsers();
+              _fetchUsers(page: _currentPage);
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: const Text('Delete'),
@@ -273,7 +284,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('User Management', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
                     const SizedBox(height: 8),
-                    Text('${_users.length} user${_users.length != 1 ? 's' : ''} registered', style: const TextStyle(fontSize: 16, color: Colors.white70)),
+                    Text('$_totalUsers user${_totalUsers != 1 ? 's' : ''} registered', style: const TextStyle(fontSize: 16, color: Colors.white70)),
                   ]),
                   ElevatedButton.icon(
                     onPressed: () => _showUserDialog(),
@@ -390,6 +401,39 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ),
                         ),
             ),
+            
+            // Pagination Bar
+            if (_lastPage > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Page $_currentPage of $_lastPage', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _currentPage > 1 ? () => _fetchUsers(page: _currentPage - 1) : null,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _currentPage < _lastPage ? () => _fetchUsers(page: _currentPage + 1) : null,
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

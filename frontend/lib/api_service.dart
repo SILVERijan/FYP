@@ -221,8 +221,8 @@ class ApiService {
   }
 
   // === ADMIN CRUD: USERS ===
-  Future<List<dynamic>> getAdminUsers() async {
-    return _adminGetList('/admin/users');
+  Future<Map<String, dynamic>> getAdminUsers({int page = 1}) async {
+    return _adminGetPaginated('/admin/users', page: page);
   }
   Future<dynamic> createAdminUser(Map<String, dynamic> data) async {
     return _adminPost('/admin/users', data);
@@ -235,8 +235,8 @@ class ApiService {
   }
 
   // === ADMIN CRUD: VEHICLES ===
-  Future<List<dynamic>> getAdminVehicles() async {
-    return _adminGetList('/admin/vehicles');
+  Future<Map<String, dynamic>> getAdminVehicles({int page = 1}) async {
+    return _adminGetPaginated('/admin/vehicles', page: page);
   }
   Future<dynamic> createAdminVehicle(Map<String, dynamic> data) async {
     return _adminPost('/admin/vehicles', data);
@@ -249,8 +249,8 @@ class ApiService {
   }
 
   // === ADMIN CRUD: ROUTES ===
-  Future<List<dynamic>> getAdminRoutes() async {
-    return _adminGetList('/admin/routes');
+  Future<Map<String, dynamic>> getAdminRoutes({int page = 1}) async {
+    return _adminGetPaginated('/admin/routes', page: page);
   }
   Future<dynamic> createAdminRoute(Map<String, dynamic> data) async {
     return _adminPost('/admin/routes', data);
@@ -308,6 +308,16 @@ class ApiService {
       return json.decode(response.body)['data'];
     }
     throw Exception('Failed to load list: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> _adminGetPaginated(String endpoint, {int page = 1}) async {
+    final token = await getToken();
+    final url = Uri.parse('$baseUrl$endpoint').replace(queryParameters: {'page': page.toString()});
+    final response = await http.get(url, headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to load paginated list: ${response.body}');
   }
 
   Future<dynamic> _adminPost(String endpoint, Map<String, dynamic> data) async {

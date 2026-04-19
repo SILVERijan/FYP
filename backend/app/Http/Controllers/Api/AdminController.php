@@ -18,7 +18,7 @@ class AdminController extends Controller
     // === USERS ===
     public function getUsers()
     {
-        return response()->json(['data' => User::all()]);
+        return response()->json(User::paginate(15));
     }
 
     public function createUser(Request $request)
@@ -81,7 +81,7 @@ class AdminController extends Controller
     // === ROUTES ===
     public function getRoutes()
     {
-        return response()->json(['data' => TransportRoute::with('stops')->get()]);
+        return response()->json(TransportRoute::with('stops')->paginate(15));
     }
 
     public function createRoute(Request $request)
@@ -155,8 +155,8 @@ class AdminController extends Controller
     // === VEHICLES ===
     public function getVehicles()
     {
-        // Load relationships if needed, e.g., route
-        return response()->json(['data' => Vehicle::with('route')->get()]);
+        // Load relationships and paginate
+        return response()->json(Vehicle::with('route')->paginate(15));
     }
 
     public function createVehicle(Request $request)
