@@ -109,11 +109,16 @@ class _RouteListingScreenState extends State<RouteListingScreen> {
   }
 
   Widget _buildRouteItem(TransportRoute route, ThemeData theme) {
-    // Dynamic color coding based on route type (Citymapper style)
-    Color typeColor = Colors.black;
-    if (route.type.toLowerCase().contains('bus')) typeColor = AppTheme.accentCrimson;
-    if (route.type.toLowerCase().contains('micro')) typeColor = Colors.blueAccent;
-    if (route.type.toLowerCase().contains('express')) typeColor = Colors.deepPurple;
+    // Dynamic color coding based on route color or type
+    Color typeColor;
+    try {
+      typeColor = Color(int.parse(route.color.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      typeColor = Colors.black;
+      if (route.type.toLowerCase().contains('bus')) typeColor = AppTheme.accentCrimson;
+      if (route.type.toLowerCase().contains('micro')) typeColor = Colors.blueAccent;
+      if (route.type.toLowerCase().contains('express')) typeColor = Colors.deepPurple;
+    }
 
     return GestureDetector(
       onTap: () {

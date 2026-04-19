@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/api_service.dart';
+import 'package:frontend/models/transport_route.dart';
+import 'package:frontend/screens/admin/route_editor_screen.dart';
 
 class RouteManagementScreen extends StatefulWidget {
   const RouteManagementScreen({super.key});
@@ -32,85 +34,23 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
     }
   }
 
-  // ── ADD / EDIT DIALOG ────────────────────────────────────────
-  void _showRouteDialog({Map<String, dynamic>? route}) {
-    final isEdit = route != null;
-    // Support both 'name' and 'route_name' keys
-    final nameCtrl = TextEditingController(text: isEdit ? (route['name'] ?? route['route_name'] ?? '') : '');
-    String selectedType = isEdit ? (route['type'] ?? 'Bus') : 'Bus';
-    bool saving = false;
+  // ── NAVIGATE TO EDITOR ────────────────────────────────────────
+  void _navigateToEditor({Map<String, dynamic>? routeData}) async {
+    TransportRoute? route;
+    if (routeData != null) {
+      route = TransportRoute.fromJson(routeData);
+    }
 
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: Icon(isEdit ? Icons.edit_road_rounded : Icons.add_road_rounded, color: Colors.orange, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(isEdit ? 'Edit Route' : 'Add New Route', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Route Name
-              TextField(
-                controller: nameCtrl,
-                decoration: _dialogDecoration('Route Name (e.g. Ratnapark - Kalanki)', Icons.label_outline_rounded),
-              ),
-              const SizedBox(height: 14),
-              // Transport Type
-              DropdownButtonFormField<String>(
-                value: selectedType,
-                decoration: _dialogDecoration('Transport Type', Icons.category_outlined),
-                items: const [
-                  DropdownMenuItem(value: 'Bus', child: Text('🚌 Bus')),
-                  DropdownMenuItem(value: 'Micro', child: Text('🚐 Micro')),
-                  DropdownMenuItem(value: 'Tempo', child: Text('🛺 Tempo')),
-                  DropdownMenuItem(value: 'Minibus', child: Text('🚍 Minibus')),
-                ],
-                onChanged: (v) => setDialogState(() => selectedType = v!),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: saving ? null : () async {
-                if (nameCtrl.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Route name is required')));
-                  return;
-                }
-                setDialogState(() => saving = true);
-                try {
-                  final data = {'name': nameCtrl.text.trim(), 'type': selectedType};
-                  if (isEdit) {
-                    await _apiService.updateAdminRoute(route['id'], data);
-                  } else {
-                    await _apiService.createAdminRoute(data);
-                  }
-                  if (mounted) Navigator.pop(ctx);
-                  _fetchRoutes();
-                } catch (e) {
-                  setDialogState(() => saving = false);
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              },
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              child: saving
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text(isEdit ? 'Save Changes' : 'Add Route'),
-            ),
-          ],
-        );
-      }),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RouteEditorScreen(route: route),
+      ),
     );
+
+    if (result == true) {
+      _fetchRoutes();
+    }
   }
 
   // ── DELETE DIALOG ────────────────────────────────────────────
@@ -144,15 +84,15 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
     );
   }
 
-  InputDecoration _dialogDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, size: 18, color: Colors.orange),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.orange, width: 1.5)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-    );
+
+
+  Color _getRouteColor(dynamic route) {
+    if (route['color'] != null) {
+      try {
+        return Color(int.parse(route['color'].toString().replaceFirst('#', '0xFF')));
+      } catch (_) {}
+    }
+    return _typeColor(route['type']);
   }
 
   Color _typeColor(String? type) {
@@ -199,9 +139,9 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                     Text('${_routes.length} route${_routes.length != 1 ? 's' : ''} configured', style: const TextStyle(fontSize: 16, color: Colors.white70)),
                   ]),
                   ElevatedButton.icon(
-                    onPressed: () => _showRouteDialog(),
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Add Route'),
+                    onPressed: () => _navigateToEditor(),
+                    icon: const Icon(Icons.add_location_alt_rounded),
+                    label: const Text('Design Route'),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.red[800], padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
                   ),
                 ],
@@ -235,13 +175,14 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                                 final String routeName = route['name'] ?? route['route_name'] ?? 'Unnamed Route';
                                 final String routeType = route['type'] ?? 'Bus';
 
-                                return ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                  leading: Container(
-                                    width: 48, height: 48,
-                                    decoration: BoxDecoration(color: _typeColor(routeType).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                                    child: Icon(Icons.route_rounded, color: _typeColor(routeType)),
-                                  ),
+                                  final Color routeColor = _getRouteColor(route);
+                                  return ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                    leading: Container(
+                                      width: 48, height: 48,
+                                      decoration: BoxDecoration(color: routeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                      child: Icon(Icons.route_rounded, color: routeColor),
+                                    ),
                                   title: Text(routeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                   subtitle: Text('ID: ${route['id']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                                   trailing: SizedBox(
@@ -257,9 +198,9 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                                         ),
                                         const SizedBox(width: 4),
                                         IconButton(
-                                          icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.blueGrey),
-                                          tooltip: 'Edit',
-                                          onPressed: () => _showRouteDialog(route: route),
+                                          icon: const Icon(Icons.edit_location_alt_outlined, size: 20, color: Colors.blueGrey),
+                                          tooltip: 'Edit Geometry',
+                                          onPressed: () => _navigateToEditor(routeData: route),
                                         ),
                                         IconButton(
                                           icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),

@@ -9,6 +9,8 @@ use App\Models\Vehicle;
 use App\Models\Route as TransportRoute;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use App\Models\Stop;
 
 class AdminController extends Controller
 {
@@ -25,6 +27,7 @@ class AdminController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role' => ['required', Rule::in(['user', 'admin', 'driver'])],
+            'company_name' => 'nullable|string|max:255',
         ]);
 
         $user = User::create([
@@ -32,6 +35,7 @@ class AdminController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'company_name' => $validated['company_name'] ?? null,
             'is_active' => true,
         ]);
 
@@ -47,12 +51,14 @@ class AdminController extends Controller
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
             'role' => ['sometimes', Rule::in(['user', 'admin', 'driver'])],
+            'company_name' => 'nullable|string|max:255',
             'is_active' => 'sometimes|boolean',
         ]);
 
         if (isset($validated['name'])) $user->name = $validated['name'];
         if (isset($validated['email'])) $user->email = $validated['email'];
         if (isset($validated['role'])) $user->role = $validated['role'];
+        if (array_key_exists('company_name', $validated)) $user->company_name = $validated['company_name'];
         if (array_key_exists('is_active', $validated)) $user->is_active = $validated['is_active'];
         if (!empty($validated['password'])) $user->password = Hash::make($validated['password']);
 
@@ -82,10 +88,35 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
+            'color' => 'sometimes|string|max:10',
+            'polyline' => 'sometimes|array',
+            'stops' => 'sometimes|array',
+            'stops.*.name' => 'required_with:stops|string|max:255',
+            'stops.*.latitude' => 'required_with:stops|numeric',
+            'stops.*.longitude' => 'required_with:stops|numeric',
         ]);
 
-        $route = TransportRoute::create($validated);
-        return response()->json(['message' => 'Route created successfully', 'data' => $route], 201);
+        return DB::transaction(function () use ($validated) {
+            $route = TransportRoute::create([
+                'name' => $validated['name'],
+                'type' => $validated['type'],
+                'color' => $validated['color'] ?? '#FF0000',
+                'polyline' => $validated['polyline'] ?? [],
+            ]);
+
+            if (isset($validated['stops'])) {
+                foreach ($validated['stops'] as $index => $stopData) {
+                    $stop = Stop::create([
+                        'name' => $stopData['name'],
+                        'latitude' => $stopData['latitude'],
+                        'longitude' => $stopData['longitude'],
+                    ]);
+                    $route->stops()->attach($stop->id, ['sort_order' => $index]);
+                }
+            }
+
+            return response()->json(['message' => 'Route created successfully', 'data' => $route->load('stops')], 201);
+        });
     }
 
     public function updateRoute(Request $request, $id)
@@ -94,9 +125,33 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'type' => 'sometimes|string|max:255',
+            'color' => 'sometimes|string|max:10',
+            'polyline' => 'sometimes|array',
+            'stops' => 'sometimes|array',
+            'stops.*.name' => 'required_with:stops|string|max:255',
+            'stops.*.latitude' => 'required_with:stops|numeric',
+            'stops.*.longitude' => 'required_with:stops|numeric',
         ]);
-        $route->update($validated);
-        return response()->json(['message' => 'Route updated successfully', 'data' => $route]);
+
+        return DB::transaction(function () use ($validated, $route) {
+            $route->update($validated);
+
+            if (isset($validated['stops'])) {
+                // For simplicity, we'll re-create stops for the route
+                // In a production app, you might want to update existing ones
+                $route->stops()->detach();
+                foreach ($validated['stops'] as $index => $stopData) {
+                    $stop = Stop::create([
+                        'name' => $stopData['name'],
+                        'latitude' => $stopData['latitude'],
+                        'longitude' => $stopData['longitude'],
+                    ]);
+                    $route->stops()->attach($stop->id, ['sort_order' => $index]);
+                }
+            }
+
+            return response()->json(['message' => 'Route updated successfully', 'data' => $route->load('stops')]);
+        });
     }
 
     public function deleteRoute($id)

@@ -55,6 +55,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final nameCtrl = TextEditingController(text: isEdit ? user['name'] : '');
     final emailCtrl = TextEditingController(text: isEdit ? user['email'] : '');
     final passwordCtrl = TextEditingController();
+    final companyNameCtrl = TextEditingController(text: isEdit ? (user['company_name'] ?? '') : '');
     String selectedRole = isEdit ? (user['role'] ?? 'user') : 'user';
     bool isActive = isEdit ? (user['is_active'] == true || user['is_active'] == 1) : true;
     bool obscure = true;
@@ -109,6 +110,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ],
                   onChanged: (v) => setDialogState(() => selectedRole = v!),
                 ),
+                if (selectedRole == 'driver') ...[
+                  const SizedBox(height: 14),
+                  _dialogField(companyNameCtrl, 'Bus Company', Icons.business_rounded),
+                ],
                 if (isEdit) ...[
                   const SizedBox(height: 14),
                   // Active toggle
@@ -151,6 +156,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       'name': nameCtrl.text.trim(),
                       'email': emailCtrl.text.trim(),
                       'role': selectedRole,
+                      'company_name': companyNameCtrl.text.trim(),
                       'is_active': isActive,
                     };
                     if (passwordCtrl.text.isNotEmpty) data['password'] = passwordCtrl.text;
@@ -161,6 +167,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       'email': emailCtrl.text.trim(),
                       'password': passwordCtrl.text,
                       'role': selectedRole,
+                      'company_name': companyNameCtrl.text.trim(),
                     });
                   }
                   if (mounted) Navigator.pop(ctx);

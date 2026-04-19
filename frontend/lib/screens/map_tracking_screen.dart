@@ -136,17 +136,20 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.frontend',
               ),
-              if (_detailedRoute != null)
+              if (_detailedRoute != null && _buildPolylinePoints().isNotEmpty)
                 PolylineLayer(
                   polylines: [
                     Polyline(
                       points: _buildPolylinePoints(),
-                      color: const Color(0xFF985A26),
+                      color: _detailedRoute?.color != null 
+                          ? Color(int.parse(_detailedRoute!.color.replaceFirst('#', '0xFF')))
+                          : const Color(0xFF985A26),
                       strokeWidth: 6.0,
                     ),
                   ],
                 ),
-              markerLayer(),
+              if ((_detailedRoute?.stops != null && _detailedRoute!.stops!.isNotEmpty) || _vehicles.isNotEmpty)
+                markerLayer(),
             ],
           ),
 

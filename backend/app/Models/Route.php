@@ -9,7 +9,7 @@ class Route extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'type', 'polyline'];
+    protected $fillable = ['name', 'type', 'polyline', 'color'];
 
     protected $casts = [
         'polyline' => 'array',

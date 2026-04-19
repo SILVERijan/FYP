@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\DriverController;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Route as TransportRouteModel;
@@ -58,6 +59,12 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/routes', [AdminController::class, 'createRoute']);
     Route::put('/routes/{id}', [AdminController::class, 'updateRoute']);
     Route::delete('/routes/{id}', [AdminController::class, 'deleteRoute']);
+});
+
+// Driver Routes
+Route::middleware(['auth:sanctum'])->prefix('driver')->group(function () {
+    Route::get('/vehicles', [DriverController::class, 'getMyVehicles']);
+    Route::post('/location', [DriverController::class, 'updateLocation']);
 });
 
 Route::get('/user', function (Request $request) {
