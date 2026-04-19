@@ -262,6 +262,44 @@ class ApiService {
     await _adminDelete('/admin/routes/$id');
   }
 
+  // === DRIVER API ===
+  Future<List<Vehicle>> getDriverVehicles() async {
+    final token = await getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/driver/vehicles'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      List jsonResponse = json.decode(response.body)['data'];
+      return jsonResponse.map((data) => Vehicle.fromJson(data)).toList();
+    }
+    throw Exception('Failed to load driver vehicles');
+  }
+
+  Future<Map<String, dynamic>> updateDriverLocation({
+    required int vehicleId,
+    required double latitude,
+    required double longitude,
+    String? status,
+  }) async {
+    final token = await getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/driver/location'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'vehicle_id': vehicleId,
+        'latitude': latitude,
+        'longitude': longitude,
+        if (status != null) 'status': status,
+      }),
+    );
+    return json.decode(response.body);
+  }
+
   // Helper methods for Admin CRUD
   Future<List<dynamic>> _adminGetList(String endpoint) async {
     final token = await getToken();

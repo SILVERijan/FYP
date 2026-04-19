@@ -99,6 +99,31 @@ class AppDrawer extends StatelessWidget {
                 },
               ),
               
+              if (user?.role == 'driver') ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 32, 24, 12),
+                  child: Text(
+                    'DRIVER CONTROLS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black26,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ).animate().fadeIn(delay: 200.ms),
+                _DrawerItem(
+                  icon: Icons.sensors_outlined,
+                  activeIcon: Icons.sensors_rounded,
+                  label: 'Live Tracking Dashboard',
+                  isSelected: selectedIndex == 7,
+                  onTap: () {
+                    Navigator.pop(context);
+                    onItemSelected(7);
+                  },
+                ),
+              ],
+              
               if (user?.role == 'admin') ...[
                 const Padding(
                   padding: EdgeInsets.fromLTRB(24, 32, 24, 12),

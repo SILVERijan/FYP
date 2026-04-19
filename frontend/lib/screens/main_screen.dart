@@ -13,6 +13,7 @@ import 'package:frontend/screens/admin_dashboard_screen.dart';
 import 'package:frontend/screens/admin/user_management_screen.dart';
 import 'package:frontend/screens/admin/vehicle_management_screen.dart';
 import 'package:frontend/screens/admin/route_management_screen.dart';
+import 'package:frontend/screens/driver_dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -83,6 +84,14 @@ class _MainScreenState extends State<MainScreen> {
                     _currentUser!.email,
                     style: const TextStyle(color: Colors.black54),
                   ),
+                  if (_currentUser?.company_name != null && _currentUser!.company_name!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        _currentUser!.company_name!,
+                        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
                 ],
               ),
               Container(
@@ -139,18 +148,19 @@ class _MainScreenState extends State<MainScreen> {
               if (value == true) _checkLoginStatus();
             });
           }),
+          if (_currentUser!.role == 'driver')
+            _buildProfileItem(Icons.sensors_rounded, 'Driver Dashboard', onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DriverDashboardScreen(user: _currentUser!)),
+              );
+            }),
           _buildProfileItem(Icons.security_outlined, 'Security'),
           _buildProfileItem(Icons.notifications_none_rounded, 'Notifications'),
           
           const SizedBox(height: 32),
           
-          const Text(
-            'Support',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.black26, letterSpacing: 0.5),
-          ),
           const SizedBox(height: 16),
-          _buildProfileItem(Icons.info_outline_rounded, 'About Samaya Sawari'),
-          _buildProfileItem(Icons.help_outline_rounded, 'Help & Resources'),
           
           const SizedBox(height: 40),
           
@@ -173,7 +183,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
           
           const SizedBox(height: 48),
-          const Center(child: Text('Version 2.0.0 (Premium)', style: TextStyle(color: Colors.black12, fontSize: 10, fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -235,11 +244,16 @@ class _MainScreenState extends State<MainScreen> {
                         const UserManagementScreen(),
                         const VehicleManagementScreen(),
                         const RouteManagementScreen(),
+                        DriverDashboardScreen(user: _currentUser!),
                       ] else ...[
                         const SizedBox.shrink(),
                         const SizedBox.shrink(),
                         const SizedBox.shrink(),
                         const SizedBox.shrink(),
+                        if (_currentUser?.role == 'driver')
+                          DriverDashboardScreen(user: _currentUser!)
+                        else
+                          const SizedBox.shrink(),
                       ]
                     ],
                   ),
@@ -267,11 +281,16 @@ class _MainScreenState extends State<MainScreen> {
                     const UserManagementScreen(),
                     const VehicleManagementScreen(),
                     const RouteManagementScreen(),
+                    DriverDashboardScreen(user: _currentUser!),
                   ] else ...[
                     const SizedBox.shrink(),
                     const SizedBox.shrink(),
                     const SizedBox.shrink(),
                     const SizedBox.shrink(),
+                    if (_currentUser?.role == 'driver')
+                      DriverDashboardScreen(user: _currentUser!)
+                    else
+                      const SizedBox.shrink(),
                   ]
                 ],
               ),
