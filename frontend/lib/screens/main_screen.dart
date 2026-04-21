@@ -13,7 +13,7 @@ import 'package:frontend/screens/admin/user_management_screen.dart';
 import 'package:frontend/screens/admin/vehicle_management_screen.dart';
 import 'package:frontend/screens/admin/route_management_screen.dart';
 import 'package:frontend/screens/driver_dashboard_screen.dart';
-import 'package:frontend/screens/route_search_screen.dart';
+import 'package:frontend/screens/journey_planner_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -220,7 +220,7 @@ class _MainScreenState extends State<MainScreen> {
         // 1. DYNAMICALLY ASSEMBLE TABS
         final List<Map<String, dynamic>> primaryTabs = [
           {'label': 'Map', 'icon': Icons.map_outlined, 'activeIcon': Icons.map_rounded, 'screen': const MapTrackingScreen(showAppBar: false)},
-          {'label': 'Plan', 'icon': Icons.explore_outlined, 'activeIcon': Icons.explore_rounded, 'screen': const RouteSearchScreen(asFragment: true)},
+          {'label': 'Plan', 'icon': Icons.explore_outlined, 'activeIcon': Icons.explore_rounded, 'screen': const JourneyPlannerScreen()},
           {'label': 'Routes', 'icon': Icons.directions_bus_outlined, 'activeIcon': Icons.directions_bus_rounded, 'screen': const RouteListingScreen(showAppBar: false)},
         ];
 

@@ -50,41 +50,26 @@ class RouteSearchController extends Controller
             return response()->json(['message' => 'No nearby stops found.'], 404);
         }
 
+        $allPathsData = $this->findRoutesGraph($startStops, $destStops);
         $allPaths = [];
-        $seenPathKeys = []; // To avoid duplicate paths
+        $seenPathKeys = [];
 
-        // Limit combinations to prevent performance issues
-        $topStartStops = $startStops->take(5);
-        $topDestStops = $destStops->take(5);
-
-        foreach ($topStartStops as $sStop) {
-            foreach ($topDestStops as $dStop) {
-                // a. Direct Routes
-                $direct = $this->findDirectRoutes($sStop->id, $dStop->id);
-                foreach ($direct as $d) {
-                    $path = $this->formatPath([$d], $startLat, $startLng, $destLat, $destLng, $sStop, $dStop);
-                    $key = $this->getPathKey($path);
-                    if (!isset($seenPathKeys[$key])) {
-                        $allPaths[] = $path;
-                        $seenPathKeys[$key] = true;
-                    }
-                }
-
-                // b. Transfer Routes (up to 3 buses total)
-                $transfers = $this->findTransferRoutesRecursive($sStop->id, $dStop->id);
-                foreach ($transfers as $t) {
-                    $path = $this->formatPath($t, $startLat, $startLng, $destLat, $destLng, $sStop, $dStop);
-                    $key = $this->getPathKey($path);
-                    if (!isset($seenPathKeys[$key])) {
-                        $allPaths[] = $path;
-                        $seenPathKeys[$key] = true;
-                    }
-                }
+        foreach ($allPathsData as $pData) {
+            $path = $this->formatPath($pData['legs'], $startLat, $startLng, $destLat, $destLng, $startStops->first(), $destStops->first());
+            $key = $this->getPathKey($path);
+            if (!isset($seenPathKeys[$key])) {
+                $allPaths[] = $path;
+                $seenPathKeys[$key] = true;
             }
         }
 
-        // Sort by total distance
-        usort($allPaths, fn($a, $b) => $a['total_distance_km'] <=> $b['total_distance_km']);
+        // Prioritize: 1. Fewer Legs (Transfers) | 2. Shorter Distance
+        usort($allPaths, function($a, $b) {
+            $legsA = count($a['legs']);
+            $legsB = count($b['legs']);
+            if ($legsA != $legsB) return $legsA <=> $legsB;
+            return $a['total_distance_km'] <=> $b['total_distance_km'];
+        });
 
         return response()->json(array_slice($allPaths, 0, 15));
     }
@@ -104,98 +89,116 @@ class RouteSearchController extends Controller
             ->get();
     }
 
-    private function findDirectRoutes($sId, $dId)
+    private function findRoutesGraph($startStops, $destStops)
     {
-        return DB::table('route_stops as rs1')
-            ->join('route_stops as rs2', 'rs1.route_id', '=', 'rs2.route_id')
-            ->where('rs1.stop_id', $sId)
-            ->where('rs2.stop_id', $dId)
-            ->where('rs1.sort_order', '<', 'rs2.sort_order')
-            ->select('rs1.route_id', 'rs1.sort_order as start_order', 'rs2.sort_order as end_order', 'rs1.stop_id as s_id', 'rs2.stop_id as d_id')
-            ->get();
-    }
+        $allPaths = [];
+        $destStopIds = $destStops->pluck('id')->toArray();
+        
+        // 1. Load data into memory for extreme speed
+        $stopToRoutes = DB::table('route_stops')
+            ->select('stop_id', 'route_id', 'sort_order')
+            ->get()
+            ->groupBy('stop_id')
+            ->toArray();
 
-    /**
-     * Finds paths with up to 2 transfers (3 buses).
-     */
-    private function findTransferRoutesRecursive($sId, $dId)
-    {
-        $results = [];
+        $routeToStops = DB::table('route_stops')
+            ->join('stops', 'route_stops.stop_id', '=', 'stops.id')
+            ->select('route_stops.*', 'stops.latitude', 'stops.longitude')
+            ->orderBy('route_id')
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('route_id')
+            ->toArray();
 
-        // --- ONE TRANSFER (2 Buses) ---
-        $oneTransfer = DB::table('route_stops as rs1_end')
-            ->join('route_stops as rs2_start', 'rs1_end.stop_id', '=', 'rs2_start.stop_id')
-            ->join('route_stops as r1_start', 'rs1_end.route_id', '=', 'r1_start.route_id')
-            ->join('route_stops as r2_end', 'rs2_start.route_id', '=', 'r2_end.route_id')
-            ->where('r1_start.stop_id', $sId)
-            ->where('r2_end.stop_id', $dId)
-            ->where('r1_start.sort_order', '<', 'rs1_end.sort_order')
-            ->where('rs2_start.sort_order', '<', 'r2_end.sort_order')
-            ->where('rs1_end.route_id', '!=', 'rs2_start.route_id')
-            ->select(
-                'rs1_end.route_id as r1_id', 'r1_start.sort_order as r1_s', 'rs1_end.sort_order as r1_e',
-                'rs2_start.route_id as r2_id', 'rs2_start.sort_order as r2_s', 'r2_end.sort_order as r2_e',
-                'rs1_end.stop_id as t1_id'
-            )
-            ->limit(10)
-            ->get();
+        $allStopsCache = Stop::all()->keyBy('id');
 
-        foreach ($oneTransfer as $ot) {
-            $results[] = [
-                (object)['route_id' => $ot->r1_id, 'start_order' => $ot->r1_s, 'end_order' => $ot->r1_e, 's_id' => $sId, 'd_id' => $ot->t1_id],
-                (object)['route_id' => $ot->r2_id, 'start_order' => $ot->r2_s, 'end_order' => $ot->r2_e, 's_id' => $ot->t1_id, 'd_id' => $dId],
-            ];
+        // 2. Track best way to reach each stop
+        // [stop_id => ['transfers' => int, 'legs' => [...]]]
+        $reachedStops = [];
+        $currentRoundStops = [];
+
+        foreach ($startStops as $s) {
+            $currentRoundStops[$s->id] = ['legs' => [], 'dist_from_start_m' => 0];
+            $reachedStops[$s->id] = 0; // reached with 0 transfers
         }
 
-        // --- TWO TRANSFERS (3 Buses) ---
-        // Find routes passing through start
-        $startRoutes = DB::table('route_stops')->where('stop_id', $sId)->pluck('route_id')->toArray();
-        // Find routes passing through dest
-        $destRoutes = DB::table('route_stops')->where('stop_id', $dId)->pluck('route_id')->toArray();
+        for ($round = 1; $round <= 3; $round++) {
+            $nextRoundStops = [];
+            $routesToScan = [];
 
-        // Find all routes that intersect with start routes
-        $midRoutes = DB::table('route_stops as rs1')
-            ->join('route_stops as rs2', 'rs1.stop_id', '=', 'rs2.stop_id')
-            ->whereIn('rs1.route_id', $startRoutes)
-            ->whereNotIn('rs2.route_id', $startRoutes)
-            ->select('rs1.route_id as start_r', 'rs1.sort_order as start_r_e', 'rs2.route_id as mid_r', 'rs2.sort_order as mid_r_s', 'rs2.stop_id as t1')
-            ->limit(50)
-            ->get();
-
-        foreach ($midRoutes as $mr) {
-            // Check if this midRoute intersects with any destRoute
-            $finalLegs = DB::table('route_stops as rsA')
-                ->join('route_stops as rsB', 'rsA.stop_id', '=', 'rsB.stop_id')
-                ->join('route_stops as rsStart', 'rsA.route_id', '=', 'rsStart.route_id')
-                ->join('route_stops as rsEnd', 'rsB.route_id', '=', 'rsEnd.route_id')
-                ->where('rsA.route_id', $mr->mid_r)
-                ->whereIn('rsB.route_id', $destRoutes)
-                ->where('rsStart.stop_id', $mr->t1)
-                ->where('rsEnd.stop_id', $dId)
-                ->where('rsStart.sort_order', '<', 'rsA.sort_order')
-                ->where('rsB.sort_order', '<', 'rsEnd.sort_order')
-                ->select('rsA.route_id', 'rsStart.sort_order as s1', 'rsA.sort_order as e1', 'rsB.route_id as r_final', 'rsB.sort_order as s2', 'rsEnd.sort_order as e2', 'rsA.stop_id as t2')
-                ->first();
-
-            if ($finalLegs) {
-                // Find start leg sort order for $sId
-                $startLeg = DB::table('route_stops')
-                    ->where('route_id', $mr->start_r)
-                    ->where('stop_id', $sId)
-                    ->first();
-                
-                if ($startLeg && $startLeg->sort_order < $mr->start_r_e) {
-                    $results[] = [
-                        (object)['route_id' => $mr->start_r, 'start_order' => $startLeg->sort_order, 'end_order' => $mr->start_r_e, 's_id' => $sId, 'd_id' => $mr->t1],
-                        (object)['route_id' => $mr->mid_r, 'start_order' => $finalLegs->s1, 'end_order' => $finalLegs->e1, 's_id' => $mr->t1, 'd_id' => $finalLegs->t2],
-                        (object)['route_id' => $finalLegs->r_final, 'start_order' => $finalLegs->s2, 'end_order' => $finalLegs->e2, 's_id' => $finalLegs->t2, 'd_id' => $dId],
-                    ];
+            // Find all routes serving stops reached in the previous round
+            foreach ($currentRoundStops as $stopId => $data) {
+                if (!isset($stopToRoutes[$stopId])) continue;
+                foreach ($stopToRoutes[$stopId] as $rs) {
+                    if (!isset($routesToScan[$rs->route_id]) || $rs->sort_order < $routesToScan[$rs->route_id]) {
+                        $routesToScan[$rs->route_id] = $rs->sort_order;
+                    }
                 }
             }
-            if (count($results) >= 20) break;
+
+            // For each route, scan stops after the boarding stop
+            foreach ($routesToScan as $routeId => $boardOrder) {
+                $stops = $routeToStops[$routeId];
+                $boarding = false;
+                foreach ($stops as $s) {
+                    if (!$boarding && $s->sort_order == $boardOrder) {
+                        $boarding = true;
+                        continue;
+                    }
+                    if (!$boarding) continue;
+
+                    // This stop 's' is reached via this route
+                    $newLeg = (object)[
+                        'route_id' => $routeId,
+                        'start_order' => $boardOrder,
+                        'end_order' => $s->sort_order,
+                        's_id' => $stops[array_search($boardOrder, array_column($stops, 'sort_order'))]->stop_id,
+                        'd_id' => $s->stop_id,
+                        'walk_after_m' => 0
+                    ];
+
+                    $prevPath = $currentRoundStops[$newLeg->s_id]['legs'];
+                    $fullPath = array_merge($prevPath, [$newLeg]);
+
+                    // Check if we hit destination
+                    if (in_array($s->stop_id, $destStopIds)) {
+                        $allPaths[] = ['legs' => $fullPath];
+                    }
+
+                    // Update reached stops for next round
+                    if (!isset($reachedStops[$s->stop_id]) || $reachedStops[$s->stop_id] > $round) {
+                        $reachedStops[$s->stop_id] = $round;
+                        $nextRoundStops[$s->stop_id] = ['legs' => $fullPath];
+                    }
+                }
+            }
+
+            // Walking Transfers between rounds
+            $walkingExtensions = [];
+            foreach ($nextRoundStops as $sId => $data) {
+                $stop = $allStopsCache[$sId] ?? null;
+                if (!$stop) continue;
+
+                $nearby = $this->findStopsInRange($stop->latitude, $stop->longitude, 0.3);
+                foreach ($nearby as $ns) {
+                    if ($ns->id == $sId) continue;
+                    if (!isset($reachedStops[$ns->id])) {
+                        $walkPath = $data['legs'];
+                        $lastLeg = end($walkPath);
+                        // Update last leg to include walking distance
+                        $lastLeg->walk_after_m = round($ns->distance * 1000);
+                        
+                        $walkingExtensions[$ns->id] = ['legs' => $walkPath];
+                        // We don't mark as reached with a transfer yet, it's a walking extension of the same transfer count
+                    }
+                }
+            }
+            
+            $currentRoundStops = array_merge($nextRoundStops, $walkingExtensions);
+            if (empty($currentRoundStops) || count($allPaths) > 15) break;
         }
 
-        return $results;
+        return $allPaths;
     }
 
     private function formatPath($legs, $startLat, $startLng, $destLat, $destLng, $firstStop, $lastStop)
@@ -206,6 +209,26 @@ class RouteSearchController extends Controller
 
         foreach ($legs as $l) {
             $route = Route::find($l->route_id);
+            
+            // Get intermediate stops for this leg
+            $minOrder = min((int)$l->start_order, (int)$l->end_order);
+            $maxOrder = max((int)$l->start_order, (int)$l->end_order);
+            $stops = $route->stops()
+                ->wherePivot('sort_order', '>=', $minOrder)
+                ->wherePivot('sort_order', '<=', $maxOrder)
+                ->get()
+                ->map(fn($s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'latitude' => $s->latitude,
+                    'longitude' => $s->longitude,
+                    'sort_order' => $s->pivot->sort_order
+                ]);
+
+            if ($l->start_order > $l->end_order) {
+                $stops = $stops->reverse()->values();
+            }
+
             $dist = $this->calculateRouteDistance($route, $l->start_order, $l->end_order);
             $fare = $this->calculateFare($dist);
             
@@ -214,6 +237,9 @@ class RouteSearchController extends Controller
 
             $fromStop = Stop::find($l->s_id);
             $toStop = Stop::find($l->d_id);
+
+            // Slice polyline for this specific leg
+            $slicedPolyline = $this->slicePolyline($route->polyline, $fromStop->latitude, $fromStop->longitude, $toStop->latitude, $toStop->longitude);
 
             $formattedLegs[] = [
                 'route_id' => $route->id,
@@ -232,7 +258,9 @@ class RouteSearchController extends Controller
                 'to_lng' => $toStop->longitude,
                 'start_order' => $l->start_order,
                 'end_order' => $l->end_order,
-                'polyline' => $route->polyline
+                'stops' => $stops,
+                'polyline' => $slicedPolyline,
+                'walk_after_m' => $l->walk_after_m ?? 0
             ];
         }
 
@@ -250,6 +278,41 @@ class RouteSearchController extends Controller
         ];
     }
 
+    private function slicePolyline($polyline, $startLat, $startLng, $endLat, $endLng)
+    {
+        if (empty($polyline) || !is_array($polyline)) return [];
+        
+        $startIndex = 0;
+        $endIndex = count($polyline) - 1;
+        $minDistStart = PHP_INT_MAX;
+        $minDistEnd = PHP_INT_MAX;
+
+        foreach ($polyline as $index => $point) {
+            $pLat = is_array($point) ? ($point['lat'] ?? $point[0] ?? $point['latitude'] ?? null) : ($point->lat ?? $point->latitude ?? null);
+            $pLng = is_array($point) ? ($point['lng'] ?? $point[1] ?? $point['longitude'] ?? null) : ($point->lng ?? $point->longitude ?? null);
+
+            if ($pLat === null || $pLng === null) continue;
+
+            $dStart = $this->haversine($startLat, $startLng, $pLat, $pLng);
+            $dEnd = $this->haversine($endLat, $endLng, $pLat, $pLng);
+
+            if ($dStart < $minDistStart) {
+                $minDistStart = $dStart;
+                $startIndex = $index;
+            }
+            if ($dEnd < $minDistEnd) {
+                $minDistEnd = $dEnd;
+                $endIndex = $index;
+            }
+        }
+
+        if ($startIndex <= $endIndex) {
+            return array_slice($polyline, $startIndex, $endIndex - $startIndex + 1);
+        } else {
+            return array_reverse(array_slice($polyline, $endIndex, $startIndex - $endIndex + 1));
+        }
+    }
+
     private function findNearestStop($lat, $lng, $radiusKm = 5.0)
     {
         return Stop::select('*')
@@ -261,10 +324,17 @@ class RouteSearchController extends Controller
 
     private function calculateRouteDistance($route, $startOrder, $endOrder)
     {
+        $minOrder = min($startOrder, $endOrder);
+        $maxOrder = max($startOrder, $endOrder);
+
         $stops = $route->stops()
-            ->wherePivot('sort_order', '>=', $startOrder)
-            ->wherePivot('sort_order', '<=', $endOrder)
+            ->wherePivot('sort_order', '>=', $minOrder)
+            ->wherePivot('sort_order', '<=', $maxOrder)
             ->get();
+
+        if ($startOrder > $endOrder) {
+            $stops = $stops->reverse()->values();
+        }
 
         $totalDistance = 0;
         for ($i = 0; $i < count($stops) - 1; $i++) {
