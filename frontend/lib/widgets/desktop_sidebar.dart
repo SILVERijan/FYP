@@ -71,8 +71,8 @@ class DesktopSidebar extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.directions_bus),
-                title: const Text('Routes'),
+                leading: const Icon(Icons.explore),
+                title: const Text('Plan Journey'),
                 selected: selectedIndex == 1,
                 selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
                 selectedColor: theme.colorScheme.primary,
@@ -82,29 +82,41 @@ class DesktopSidebar extends StatelessWidget {
                   onItemSelected(1);
                 },
               ),
-              if (user?.role == 'driver' || user?.role == 'admin')
-                ListTile(
-                  leading: const Icon(Icons.sensors),
-                  title: const Text('Driver Dashboard'),
-                  selected: selectedIndex == 2,
-                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
-                  selectedColor: theme.colorScheme.primary,
-                  iconColor: Colors.black87,
-                  textColor: Colors.black87,
-                  onTap: () {
-                    onItemSelected(2);
-                  },
-                ),
               ListTile(
-                leading: const Icon(Icons.person),
-                title: const Text('Profile'),
-                selected: selectedIndex == ((user?.role == 'driver' || user?.role == 'admin') ? 3 : 2),
+                leading: const Icon(Icons.directions_bus),
+                title: const Text('Routes'),
+                selected: selectedIndex == 2,
                 selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
                 selectedColor: theme.colorScheme.primary,
                 iconColor: Colors.black87,
                 textColor: Colors.black87,
                 onTap: () {
-                  onItemSelected((user?.role == 'driver' || user?.role == 'admin') ? 3 : 2);
+                  onItemSelected(2);
+                },
+              ),
+              if (user?.role == 'driver' || user?.role == 'admin')
+                ListTile(
+                  leading: const Icon(Icons.sensors),
+                  title: const Text('Driver Dashboard'),
+                  selected: selectedIndex == 3,
+                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                  selectedColor: theme.colorScheme.primary,
+                  iconColor: Colors.black87,
+                  textColor: Colors.black87,
+                  onTap: () {
+                    onItemSelected(3);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('Profile'),
+                selected: selectedIndex == ((user?.role == 'driver' || user?.role == 'admin') ? 4 : 3),
+                selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                selectedColor: theme.colorScheme.primary,
+                iconColor: Colors.black87,
+                textColor: Colors.black87,
+                onTap: () {
+                  onItemSelected((user?.role == 'driver' || user?.role == 'admin') ? 4 : 3);
                 },
               ),
               if (user?.role == 'admin') ...[
@@ -126,18 +138,6 @@ class DesktopSidebar extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.dashboard),
                   title: const Text('Dashboard'),
-                  selected: selectedIndex == 4,
-                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
-                  selectedColor: theme.colorScheme.primary,
-                  iconColor: Colors.black87,
-                  textColor: Colors.black87,
-                  onTap: () {
-                    onItemSelected(4);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.people),
-                  title: const Text('User Management'),
                   selected: selectedIndex == 5,
                   selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
                   selectedColor: theme.colorScheme.primary,
@@ -148,8 +148,8 @@ class DesktopSidebar extends StatelessWidget {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.directions_car),
-                  title: const Text('Transport Management'),
+                  leading: const Icon(Icons.people),
+                  title: const Text('User Management'),
                   selected: selectedIndex == 6,
                   selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
                   selectedColor: theme.colorScheme.primary,
@@ -160,8 +160,8 @@ class DesktopSidebar extends StatelessWidget {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.route),
-                  title: const Text('Route Management'),
+                  leading: const Icon(Icons.directions_car),
+                  title: const Text('Transport Management'),
                   selected: selectedIndex == 7,
                   selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
                   selectedColor: theme.colorScheme.primary,
@@ -169,6 +169,18 @@ class DesktopSidebar extends StatelessWidget {
                   textColor: Colors.black87,
                   onTap: () {
                     onItemSelected(7);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.route),
+                  title: const Text('Route Management'),
+                  selected: selectedIndex == 8,
+                  selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+                  selectedColor: theme.colorScheme.primary,
+                  iconColor: Colors.black87,
+                  textColor: Colors.black87,
+                  onTap: () {
+                    onItemSelected(8);
                   },
                 ),
               ],

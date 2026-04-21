@@ -8,12 +8,12 @@ import 'package:frontend/screens/login_screen.dart';
 import 'package:frontend/screens/edit_profile_screen.dart';
 import 'package:frontend/widgets/app_drawer.dart';
 import 'package:frontend/widgets/desktop_sidebar.dart';
-import 'package:frontend/screens/desktop_routes_dashboard.dart';
 import 'package:frontend/screens/admin_dashboard_screen.dart';
 import 'package:frontend/screens/admin/user_management_screen.dart';
 import 'package:frontend/screens/admin/vehicle_management_screen.dart';
 import 'package:frontend/screens/admin/route_management_screen.dart';
 import 'package:frontend/screens/driver_dashboard_screen.dart';
+import 'package:frontend/screens/route_search_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -220,6 +220,7 @@ class _MainScreenState extends State<MainScreen> {
         // 1. DYNAMICALLY ASSEMBLE TABS
         final List<Map<String, dynamic>> primaryTabs = [
           {'label': 'Map', 'icon': Icons.map_outlined, 'activeIcon': Icons.map_rounded, 'screen': const MapTrackingScreen(showAppBar: false)},
+          {'label': 'Plan', 'icon': Icons.explore_outlined, 'activeIcon': Icons.explore_rounded, 'screen': const RouteSearchScreen(asFragment: true)},
           {'label': 'Routes', 'icon': Icons.directions_bus_outlined, 'activeIcon': Icons.directions_bus_rounded, 'screen': const RouteListingScreen(showAppBar: false)},
         ];
 
@@ -297,7 +298,9 @@ class _MainScreenState extends State<MainScreen> {
                   right: 16,
                   child: GestureDetector(
                     onTap: () {
-                      // Trigger search or route selection
+                      setState(() {
+                        _selectedIndex = 1; // Switch to Plan tab
+                      });
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

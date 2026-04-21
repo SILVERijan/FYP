@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_animate/flutter_animate.dart';
 import '../models/transport_route.dart';
@@ -12,8 +13,15 @@ import '../theme/app_theme.dart';
 
 class MapTrackingScreen extends StatefulWidget {
   final TransportRoute? route;
+  final List<dynamic>? searchedJourney; // List of legs from search
   final bool showAppBar;
-  const MapTrackingScreen({super.key, this.route, this.showAppBar = true});
+  
+  const MapTrackingScreen({
+    super.key, 
+    this.route, 
+    this.searchedJourney,
+    this.showAppBar = true
+  });
 
   @override
   State<MapTrackingScreen> createState() => _MapTrackingScreenState();
@@ -29,6 +37,9 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   List<int> _selectedRouteIds = [];
   List<TransportRoute> _allRoutes = [];
   final DraggableScrollableController _sheetController = DraggableScrollableController();
+  bool _isFocusMode = true; // Toggle for segment highlighting
+  LatLng? _currentUserLocation;
+  StreamSubscription<Position>? _positionStream;
 
   @override
   void initState() {
@@ -41,7 +52,34 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
     }
     
     _fetchVehicles();
+    _initLocationService();
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchVehicles());
+  }
+
+  Future<void> _initLocationService() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    
+    if (permission == LocationPermission.deniedForever) return;
+
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10),
+    ).listen((Position position) {
+      if (mounted) {
+        setState(() {
+          _currentUserLocation = LatLng(position.latitude, position.longitude);
+        });
+      }
+    });
   }
 
   Future<void> _fetchAllRoutes() async {
@@ -56,6 +94,7 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   @override
   void dispose() {
     _timer?.cancel();
+    _positionStream?.cancel();
     super.dispose();
   }
 
@@ -102,21 +141,115 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   }
 
   void _centerOnUser() {
-    if (_vehicles.isNotEmpty) {
+    if (_currentUserLocation != null) {
+      _mapController.move(_currentUserLocation!, 15.0);
+    } else if (_vehicles.isNotEmpty) {
       _mapController.move(LatLng(_vehicles.first.latitude, _vehicles.first.longitude), 14.5);
     } else {
        _mapController.move(const LatLng(27.7000, 85.3000), 13.0);
     }
   }
 
-  List<LatLng> _buildPolylinePoints() {
-    if (_detailedRoute?.polyline?.isNotEmpty ?? false) {
-      return _detailedRoute!.polyline!.map((pt) => LatLng(pt[0], pt[1])).toList();
+  List<LatLng> _getSegmentPoints(List<dynamic> polyline, Map<String, dynamic> leg) {
+    if (polyline.isEmpty) return [];
+    
+    final points = polyline.map((pt) => LatLng(pt[0], pt[1])).toList();
+    if (!_isFocusMode) return points;
+
+    final fromLat = leg['from_lat'];
+    final fromLng = leg['from_lng'];
+    final toLat = leg['to_lat'];
+    final toLng = leg['to_lng'];
+
+    if (fromLat == null || toLat == null) return points;
+
+    int startIndex = 0;
+    int endIndex = points.length - 1;
+    double minStartDist = double.infinity;
+    double minEndDist = double.infinity;
+
+    final Distance distance = const Distance();
+
+    for (int i = 0; i < points.length; i++) {
+      double dStart = distance.as(LengthUnit.Meter, points[i], LatLng(fromLat, fromLng));
+      double dEnd = distance.as(LengthUnit.Meter, points[i], LatLng(toLat, toLng));
+
+      if (dStart < minStartDist) {
+        minStartDist = dStart;
+        startIndex = i;
+      }
+      if (dEnd < minEndDist) {
+        minEndDist = dEnd;
+        endIndex = i;
+      }
     }
-    if (_detailedRoute?.stops != null) {
-      return _detailedRoute!.stops!.map((s) => LatLng(s.latitude, s.longitude)).toList();
+
+    // Ensure start comes before end if it's a one-way route logic, 
+    if (startIndex > endIndex) {
+       // Could be a loop, or just the way points are ordered. 
+       // For segment highlighting, we just return the slice.
+       return points.sublist(endIndex, startIndex + 1);
     }
-    return [];
+
+    return points.sublist(startIndex, endIndex + 1);
+  }
+
+  // Helper for markers
+  List<Marker> _buildJourneyMarkers() {
+    if (widget.searchedJourney == null) return [];
+    final List<Marker> markers = [];
+    
+    for (var leg in widget.searchedJourney!) {
+      final color = Color(int.parse((leg['color'] ?? '#985A26').replaceFirst('#', '0xFF')));
+      
+      // Stop marker
+      markers.add(Marker(
+        point: LatLng(leg['from_lat'], leg['from_lng']),
+        width: 12, height: 12,
+        child: Container(decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
+      ));
+      
+      // Final destination marker for the last leg
+      if (leg == widget.searchedJourney!.last) {
+        markers.add(Marker(
+          point: LatLng(leg['to_lat'], leg['to_lng']),
+          width: 12, height: 12,
+          child: Container(decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
+        ));
+      }
+    }
+    return markers;
+  }
+
+  Widget _buildUserLocationMarker() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 30, height: 30,
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+        ).animate(onPlay: (controller) => controller.repeat())
+         .scale(begin: const Offset(1, 1), end: const Offset(2, 2), duration: 2.seconds, curve: Curves.easeOut)
+         .fadeOut(duration: 2.seconds),
+        Container(
+          width: 14, height: 14,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: const Offset(0, 2))],
+          ),
+          child: Center(
+            child: Container(
+              width: 10, height: 10,
+              decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -136,11 +269,24 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.frontend',
               ),
-              if (_detailedRoute != null && _buildPolylinePoints().isNotEmpty)
+              // Multi-leg searched journey
+              if (widget.searchedJourney != null)
+                PolylineLayer(
+                  polylines: widget.searchedJourney!.map((leg) {
+                    final color = Color(int.parse((leg['color'] ?? '#985A26').replaceFirst('#', '0xFF')));
+                    return Polyline(
+                      points: _getSegmentPoints(leg['polyline'] ?? [], leg),
+                      color: color,
+                      strokeWidth: 6.0,
+                    );
+                  }).toList(),
+                ),
+              // Single selected route
+              if (widget.searchedJourney == null && _detailedRoute != null)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: _buildPolylinePoints(),
+                      points: _detailedRoute!.polyline!.map((pt) => LatLng(pt[0], pt[1])).toList(),
                       color: _detailedRoute?.color != null 
                           ? Color(int.parse(_detailedRoute!.color.replaceFirst('#', '0xFF')))
                           : const Color(0xFF985A26),
@@ -148,7 +294,7 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
                     ),
                   ],
                 ),
-              if ((_detailedRoute?.stops != null && _detailedRoute!.stops!.isNotEmpty) || _vehicles.isNotEmpty)
+              if ((_detailedRoute?.stops != null && _detailedRoute!.stops!.isNotEmpty) || _vehicles.isNotEmpty || widget.searchedJourney != null)
                 markerLayer(),
             ],
           ),
@@ -180,6 +326,15 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
                   icon: Icons.layers_outlined,
                   onPressed: () {},
                 ),
+                if (widget.searchedJourney != null) ...[
+                  const SizedBox(height: 12),
+                  _buildFloatingButton(
+                    icon: _isFocusMode ? Icons.center_focus_strong : Icons.map_outlined,
+                    color: _isFocusMode ? Colors.black : Colors.white,
+                    iconColor: _isFocusMode ? Colors.white : Colors.black87,
+                    onPressed: () => setState(() => _isFocusMode = !_isFocusMode),
+                  ),
+                ],
               ],
             ),
           ),
@@ -191,6 +346,13 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
   Widget markerLayer() {
     return MarkerLayer(
       markers: [
+        if (_currentUserLocation != null)
+          Marker(
+            point: _currentUserLocation!,
+            width: 40, height: 40,
+            child: _buildUserLocationMarker(),
+          ),
+        ..._buildJourneyMarkers(),
         ...(_detailedRoute?.stops ?? []).map((s) => Marker(
           point: LatLng(s.latitude, s.longitude),
           width: 24, height: 24,
@@ -280,17 +442,17 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
     ).animate().fadeIn().slideY(begin: -0.2);
   }
 
-  Widget _buildFloatingButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget _buildFloatingButton({required IconData icon, required VoidCallback onPressed, Color? color, Color? iconColor}) {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
         height: 48, width: 48,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: color ?? Colors.white,
           shape: BoxShape.circle,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
         ),
-        child: Icon(icon, color: Colors.black87, size: 22),
+        child: Icon(icon, color: iconColor ?? Colors.black87, size: 22),
       ),
     );
   }
@@ -428,8 +590,11 @@ class _MapTrackingScreenState extends State<MapTrackingScreen> with SingleTicker
                           trailing: Icon(isSelected ? Icons.check_circle_rounded : Icons.circle_outlined, color: isSelected ? Colors.black : Colors.black12),
                           onTap: () {
                             setModalState(() {
-                              if (isSelected) _selectedRouteIds.remove(route.id);
-                              else _selectedRouteIds.add(route.id);
+                              if (isSelected) {
+                                _selectedRouteIds.remove(route.id);
+                              } else {
+                                _selectedRouteIds.add(route.id);
+                              }
                             });
                             setState(() {});
                             _fetchVehicles();

@@ -156,6 +156,30 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> suggestStops(String query) async {
+    final response = await http.get(Uri.parse('$baseUrl/transport/stops/suggest?query=$query'));
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> findRoutes({
+    required double startLat,
+    required double startLng,
+    required double destLat,
+    required double destLng,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/transport/search?start_lat=$startLat&start_lng=$startLng&dest_lat=$destLat&dest_lng=$destLng'),
+    );
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
+    } else {
+      throw Exception('Failed to find routes: ${response.body}');
+    }
+  }
+
   Future<Map<String, dynamic>> updateProfile(String name, dynamic image) async {
     try {
       final token = await getToken();
@@ -260,6 +284,20 @@ class ApiService {
   }
   Future<void> deleteAdminRoute(int id) async {
     await _adminDelete('/admin/routes/$id');
+  }
+
+  // === ADMIN CRUD: FARE RULES ===
+  Future<List<dynamic>> getAdminFareRules() async {
+    return _adminGetList('/admin/fare-rules');
+  }
+  Future<dynamic> createAdminFareRule(Map<String, dynamic> data) async {
+    return _adminPost('/admin/fare-rules', data);
+  }
+  Future<dynamic> updateAdminFareRule(int id, Map<String, dynamic> data) async {
+    return _adminPut('/admin/fare-rules/$id', data);
+  }
+  Future<void> deleteAdminFareRule(int id) async {
+    await _adminDelete('/admin/fare-rules/$id');
   }
 
   // === DRIVER API ===

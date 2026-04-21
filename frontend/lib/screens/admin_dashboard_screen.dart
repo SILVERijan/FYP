@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/api_service.dart';
+import 'package:frontend/screens/admin/fare_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -111,6 +112,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             'Across all modules',
                             Icons.directions_car_outlined,
                           ),
+                          _buildActionCard(
+                            'MANAGE FARES',
+                            'Set pricing rules',
+                            Icons.payments_outlined,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const AdminFareManagementScreen()),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     );
@@ -118,6 +130,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCard(String title, String subtitle, IconData icon, {required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.black, // Distinguish from stats
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70, letterSpacing: 1.2)),
+                Icon(icon, color: Colors.white, size: 24),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(subtitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 12),
+            const Text('Configure Pricing →', style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600)),
           ],
         ),
       ),

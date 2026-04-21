@@ -80,13 +80,23 @@ class AppDrawer extends StatelessWidget {
                 },
               ),
               _DrawerItem(
-                icon: Icons.directions_bus_outlined,
-                activeIcon: Icons.directions_bus_rounded,
-                label: 'Routes & Schedules',
+                icon: Icons.explore_outlined,
+                activeIcon: Icons.explore_rounded,
+                label: 'Plan Journey',
                 isSelected: selectedIndex == 1,
                 onTap: () {
                   Navigator.pop(context);
                   onItemSelected(1);
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.directions_bus_outlined,
+                activeIcon: Icons.directions_bus_rounded,
+                label: 'Routes & Schedules',
+                isSelected: selectedIndex == 2,
+                onTap: () {
+                  Navigator.pop(context);
+                  onItemSelected(2);
                 },
               ),
               
@@ -95,10 +105,10 @@ class AppDrawer extends StatelessWidget {
                   icon: Icons.sensors_outlined,
                   activeIcon: Icons.sensors_rounded,
                   label: 'Driver Dashboard',
-                  isSelected: selectedIndex == 2,
+                  isSelected: selectedIndex == 3,
                   onTap: () {
                     Navigator.pop(context);
-                    onItemSelected(2);
+                    onItemSelected(3);
                   },
                 ),
 
@@ -106,10 +116,10 @@ class AppDrawer extends StatelessWidget {
                 icon: Icons.person_outline_rounded,
                 activeIcon: Icons.person_rounded,
                 label: 'Profile Settings',
-                isSelected: selectedIndex == ( (user?.role == 'driver' || user?.role == 'admin') ? 3 : 2),
+                isSelected: selectedIndex == ( (user?.role == 'driver' || user?.role == 'admin') ? 4 : 3),
                 onTap: () {
                   Navigator.pop(context);
-                  onItemSelected((user?.role == 'driver' || user?.role == 'admin') ? 3 : 2);
+                  onItemSelected((user?.role == 'driver' || user?.role == 'admin') ? 4 : 3);
                 },
               ),
               
@@ -130,16 +140,6 @@ class AppDrawer extends StatelessWidget {
                   icon: Icons.dashboard_outlined,
                   activeIcon: Icons.dashboard_rounded,
                   label: 'Analytics Dashboard',
-                  isSelected: selectedIndex == 4,
-                  onTap: () {
-                    Navigator.pop(context);
-                    onItemSelected(4);
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.people_outline_rounded,
-                  activeIcon: Icons.people_rounded,
-                  label: 'User Management',
                   isSelected: selectedIndex == 5,
                   onTap: () {
                     Navigator.pop(context);
@@ -147,9 +147,9 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _DrawerItem(
-                  icon: Icons.directions_car_outlined,
-                  activeIcon: Icons.directions_car_rounded,
-                  label: 'Transport Fleet',
+                  icon: Icons.people_outline_rounded,
+                  activeIcon: Icons.people_rounded,
+                  label: 'User Management',
                   isSelected: selectedIndex == 6,
                   onTap: () {
                     Navigator.pop(context);
@@ -157,13 +157,23 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _DrawerItem(
-                  icon: Icons.alt_route_outlined,
-                  activeIcon: Icons.alt_route_rounded,
-                  label: 'Route Manager',
+                  icon: Icons.directions_car_outlined,
+                  activeIcon: Icons.directions_car_rounded,
+                  label: 'Transport Fleet',
                   isSelected: selectedIndex == 7,
                   onTap: () {
                     Navigator.pop(context);
                     onItemSelected(7);
+                  },
+                ),
+                _DrawerItem(
+                  icon: Icons.alt_route_outlined,
+                  activeIcon: Icons.alt_route_rounded,
+                  label: 'Route Manager',
+                  isSelected: selectedIndex == 8,
+                  onTap: () {
+                    Navigator.pop(context);
+                    onItemSelected(8);
                   },
                 ),
               ],

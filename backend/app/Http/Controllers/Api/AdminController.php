@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use App\Models\Stop;
+use App\Models\FareRule;
 use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
@@ -199,6 +200,46 @@ class AdminController extends Controller
         $vehicle = Vehicle::findOrFail($id);
         $vehicle->delete();
         return response()->json(['message' => 'Vehicle deleted successfully']);
+    }
+
+    // === FARE RULES ===
+    public function getFareRules()
+    {
+        return response()->json(FareRule::orderBy('min_km')->get());
+    }
+
+    public function createFareRule(Request $request)
+    {
+        $validated = $request->validate([
+            'min_km' => 'required|numeric',
+            'max_km' => 'nullable|numeric',
+            'fare' => 'required|numeric',
+            'is_active' => 'boolean'
+        ]);
+
+        $rule = FareRule::create($validated);
+        return response()->json(['message' => 'Fare rule created successfully', 'data' => $rule], 201);
+    }
+
+    public function updateFareRule(Request $request, $id)
+    {
+        $rule = FareRule::findOrFail($id);
+        $validated = $request->validate([
+            'min_km' => 'sometimes|numeric',
+            'max_km' => 'nullable|numeric',
+            'fare' => 'sometimes|numeric',
+            'is_active' => 'sometimes|boolean'
+        ]);
+
+        $rule->update($validated);
+        return response()->json(['message' => 'Fare rule updated successfully', 'data' => $rule]);
+    }
+
+    public function deleteFareRule($id)
+    {
+        $rule = FareRule::findOrFail($id);
+        $rule->delete();
+        return response()->json(['message' => 'Fare rule deleted successfully']);
     }
 
     private function findOrCreateStop($data)

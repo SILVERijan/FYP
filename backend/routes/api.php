@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\DriverController;
+use App\Http\Controllers\Api\RouteSearchController;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Route as TransportRouteModel;
@@ -27,6 +28,10 @@ Route::prefix('transport')->group(function () {
     Route::get('/routes', [TransportController::class, 'getRoutes']);
     Route::get('/routes/{id}', [TransportController::class, 'getRouteDetails']);
     Route::get('/vehicles', [TransportController::class, 'getVehicles']);
+    
+    // Search & Suggestions
+    Route::get('/search', [RouteSearchController::class, 'findRoutes']);
+    Route::get('/stops/suggest', [RouteSearchController::class, 'suggestStops']);
 });
 
 // Protected Admin Routes
@@ -59,6 +64,12 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/routes', [AdminController::class, 'createRoute']);
     Route::put('/routes/{id}', [AdminController::class, 'updateRoute']);
     Route::delete('/routes/{id}', [AdminController::class, 'deleteRoute']);
+
+    // Admin Fare Management
+    Route::get('/fare-rules', [AdminController::class, 'getFareRules']);
+    Route::post('/fare-rules', [AdminController::class, 'createFareRule']);
+    Route::put('/fare-rules/{id}', [AdminController::class, 'updateFareRule']);
+    Route::delete('/fare-rules/{id}', [AdminController::class, 'deleteFareRule']);
 });
 
 // Driver Routes
