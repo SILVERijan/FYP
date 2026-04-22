@@ -81,8 +81,22 @@ class RouteSearchController extends Controller
                     'route_id' => $rId,
                     'source_stop_id' => $curr->stop_id,
                     'target_stop_id' => $next->stop_id,
-                    'source_sort_order' => $curr->sort_order,
-                    'target_sort_order' => $next->sort_order,
+                    'source_stop_index' => $i,
+                    'target_stop_index' => $i + 1,
+                    'dist' => $dist
+                ];
+
+                // Add reverse edge for bidirectional travel
+                if (!isset($graph[$nodeB])) $graph[$nodeB] = [];
+                $graph[$nodeB][] = [
+                    'target' => $nodeA, 
+                    'weight' => $time, 
+                    'type' => 'transit', 
+                    'route_id' => $rId,
+                    'source_stop_id' => $next->stop_id,
+                    'target_stop_id' => $curr->stop_id,
+                    'source_stop_index' => $i + 1,
+                    'target_stop_index' => $i,
                     'dist' => $dist
                 ];
             }
@@ -278,12 +292,14 @@ class RouteSearchController extends Controller
                         'from_stop' => $sourceStop->name,
                         'to_stop' => '', 
                         'polyline' => [],
-                        'start_order' => $step['source_sort_order'],
-                        'end_order' => $step['target_sort_order'],
+                        'start_order' => $step['source_stop_index'],
+                        'end_order' => $step['target_stop_index'],
                         'from_lat' => $sourceStop->latitude,
                         'from_lng' => $sourceStop->longitude,
                         'to_lat' => $targetStop->latitude,
                         'to_lng' => $targetStop->longitude,
+                        'from_stop_id' => $step['source_stop_id'],
+                        'to_stop_id' => $step['target_stop_id'],
                     ];
                 }
                 
@@ -293,7 +309,8 @@ class RouteSearchController extends Controller
                     'longitude' => $targetStop->longitude
                 ];
                 $currentTransitLeg['to_stop'] = $targetStop->name;
-                $currentTransitLeg['end_order'] = $step['target_sort_order'];
+                $currentTransitLeg['end_order'] = $step['target_stop_index'];
+                $currentTransitLeg['to_stop_id'] = $step['target_stop_id'];
                 $currentTransitLeg['distance_km'] += ($step['dist'] / 1000);
                 $currentTransitLeg['to_lat'] = $targetStop->latitude;
                 $currentTransitLeg['to_lng'] = $targetStop->longitude;
@@ -318,22 +335,35 @@ class RouteSearchController extends Controller
                 $leg['fare'] = $fare;
                 $totalFare += $fare;
                 
-                // Slice polyline
-                $polyPoints = json_decode($route->polyline, true);
-                if ($polyPoints && is_array($polyPoints) && isset($stopsPerRoute[$route->id])) {
-                    $totalStopsOnRoute = count($stopsPerRoute[$route->id]);
-                    $ratioStart = $leg['start_order'] / $totalStopsOnRoute;
-                    $ratioEnd = $leg['end_order'] / $totalStopsOnRoute;
-                    
-                    $idxStart = max(0, (int)floor($ratioStart * count($polyPoints)));
-                    $idxEnd = min(count($polyPoints) - 1, (int)ceil($ratioEnd * count($polyPoints)));
-                    
-                    if ($idxStart <= $idxEnd) {
-                        $leg['polyline'] = array_slice($polyPoints, $idxStart, $idxEnd - $idxStart + 1);
+                // Slice polyline using nearest-point coordinate search for accuracy
+                $polyPoints = is_string($route->polyline) ? json_decode($route->polyline, true) : $route->polyline;
+                if ($polyPoints && is_array($polyPoints) && count($polyPoints) >= 2) {
+                    $fromStop = $stops[$leg['from_stop_id']] ?? null;
+                    $toStop   = $stops[$leg['to_stop_id']] ?? null;
+
+                    if ($fromStop && $toStop) {
+                        $idxStart = $this->nearestPolylineIndex($polyPoints, $fromStop->latitude, $fromStop->longitude);
+                        $idxEnd   = $this->nearestPolylineIndex($polyPoints, $toStop->latitude, $toStop->longitude);
+
+                        if ($idxStart <= $idxEnd) {
+                            $leg['polyline'] = array_slice($polyPoints, $idxStart, $idxEnd - $idxStart + 1);
+                        } else {
+                            // Reverse-direction travel — slice and flip
+                            $sliced = array_slice($polyPoints, $idxEnd, $idxStart - $idxEnd + 1);
+                            $leg['polyline'] = array_reverse($sliced);
+                        }
+                    } else {
+                        $leg['polyline'] = $polyPoints; // fallback: full polyline
                     }
                 }
             }
         }
+
+        // Strip internal routing keys before returning
+        foreach ($legs as &$leg) {
+            unset($leg['start_order'], $leg['end_order'], $leg['from_stop_id'], $leg['to_stop_id']);
+        }
+        unset($leg);
 
         return response()->json([[
             'legs' => $legs,
@@ -364,6 +394,26 @@ class RouteSearchController extends Controller
 
         $generalRule = $rules->whereNull('route_id')->whereNull('vehicle_type')->first();
         return $generalRule ? $generalRule->fare : $rules->first()->fare;
+    }
+
+    /**
+     * Find the index of the polyline point closest to the given coordinates.
+     */
+    private function nearestPolylineIndex(array $polyPoints, float $lat, float $lng): int
+    {
+        $best = 0;
+        $bestDist = PHP_FLOAT_MAX;
+        foreach ($polyPoints as $i => $p) {
+            // Polyline points can be [lat, lng] arrays or {lat, lng} objects
+            $pLat = is_array($p) ? (float)$p[0] : (float)($p['lat'] ?? $p['latitude'] ?? 0);
+            $pLng = is_array($p) ? (float)$p[1] : (float)($p['lng'] ?? $p['longitude'] ?? 0);
+            $d = ($pLat - $lat) ** 2 + ($pLng - $lng) ** 2; // squared distance is fine for comparison
+            if ($d < $bestDist) {
+                $bestDist = $d;
+                $best = $i;
+            }
+        }
+        return $best;
     }
 
     private function haversine($lat1, $lon1, $lat2, $lon2)

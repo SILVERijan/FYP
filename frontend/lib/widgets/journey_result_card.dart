@@ -16,9 +16,9 @@ class JourneyResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<dynamic> legs = journey['legs'];
-    final fare = journey['total_fare'];
-    final distance = journey['total_distance_km'];
+    final List<dynamic> legs = journey['legs'] ?? [];
+    final fare = journey['total_fare'] ?? 0;
+    final distance = (journey['total_distance_km'] as num?)?.toDouble() ?? 0.0;
     
     return GestureDetector(
       onTap: onTap,

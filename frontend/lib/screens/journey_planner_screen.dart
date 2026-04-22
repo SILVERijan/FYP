@@ -443,8 +443,8 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
           
           return _buildStopItem(
             s['name'], 
-            s['latitude'], 
-            s['longitude'], 
+            (s['latitude'] as num).toDouble(), 
+            (s['longitude'] as num).toDouble(), 
             isFirst: isFirst, 
             isLast: isLast && isLastLeg,
             lineColor: color
@@ -573,8 +573,12 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
     List<LatLng> points = [];
     final legs = _selectedJourney!['legs'] as List;
     for (var leg in legs) {
-      points.add(LatLng(leg['from_lat'], leg['from_lng']));
-      points.add(LatLng(leg['to_lat'], leg['to_lng']));
+      if (leg['from_lat'] != null && leg['from_lng'] != null) {
+        points.add(LatLng((leg['from_lat'] as num).toDouble(), (leg['from_lng'] as num).toDouble()));
+      }
+      if (leg['to_lat'] != null && leg['to_lng'] != null) {
+        points.add(LatLng((leg['to_lat'] as num).toDouble(), (leg['to_lng'] as num).toDouble()));
+      }
     }
     
     if (points.isNotEmpty) {
@@ -588,26 +592,46 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
     List<Polyline> lines = [];
     final legs = _selectedJourney!['legs'] as List;
     for (var leg in legs) {
+      if (leg['type'] == 'walk') continue;
+      
       final List polyPoints = leg['polyline'] ?? [];
       final List<LatLng> points = polyPoints.map((p) {
-        if (p is List) return LatLng(p[0] as double, p[1] as double);
+        if (p is List) return LatLng((p[0] as num).toDouble(), (p[1] as num).toDouble());
         // Sometimes JSON comes as Map with lat/lng keys
         return LatLng(
-          (p['lat'] ?? p['latitude'] ?? 0.0) as double, 
-          (p['lng'] ?? p['longitude'] ?? 0.0) as double
+          ((p['lat'] ?? p['latitude'] ?? 0.0) as num).toDouble(), 
+          ((p['lng'] ?? p['longitude'] ?? 0.0) as num).toDouble()
         );
       }).toList();
 
       if (points.isEmpty) {
-        points.add(LatLng(leg['from_lat'], leg['from_lng']));
-        points.add(LatLng(leg['to_lat'], leg['to_lng']));
+        if (leg['from_lat'] != null && leg['from_lng'] != null) {
+          points.add(LatLng((leg['from_lat'] as num).toDouble(), (leg['from_lng'] as num).toDouble()));
+        }
+        if (leg['to_lat'] != null && leg['to_lng'] != null) {
+          points.add(LatLng((leg['to_lat'] as num).toDouble(), (leg['to_lng'] as num).toDouble()));
+        }
       }
 
-      lines.add(Polyline(
-        points: points,
-        color: Color(int.parse((leg['color'] ?? '#E31C23').replaceFirst('#', '0xFF'))),
-        strokeWidth: 5.0,
-      ));
+      if (points.isNotEmpty) {
+        // Snap the polyline to the exact start and end stop coordinates to close any visual gaps
+        final startLatLng = LatLng((leg['from_lat'] as num).toDouble(), (leg['from_lng'] as num).toDouble());
+        final endLatLng = LatLng((leg['to_lat'] as num).toDouble(), (leg['to_lng'] as num).toDouble());
+        
+        // Only insert if it's not already exactly the same point
+        if (points.first.latitude != startLatLng.latitude || points.first.longitude != startLatLng.longitude) {
+          points.insert(0, startLatLng);
+        }
+        if (points.last.latitude != endLatLng.latitude || points.last.longitude != endLatLng.longitude) {
+          points.add(endLatLng);
+        }
+
+        lines.add(Polyline(
+          points: points,
+          color: Color(int.parse((leg['color'] ?? '#E31C23').replaceFirst('#', '0xFF'))),
+          strokeWidth: 5.0,
+        ));
+      }
     }
     return lines;
   }
@@ -636,17 +660,22 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
       
       for (int i = 0; i < legs.length; i++) {
         final leg = legs[i];
+        if (leg['type'] == 'walk') continue;
+        
         final color = Color(int.parse((leg['color'] ?? '#E31C23').replaceFirst('#', '0xFF')));
-        final List stops = leg['stops'] as List;
+        final List stops = leg['stops'] ?? [];
 
         for (int j = 0; j < stops.length; j++) {
           final stop = stops[j];
           final isStartOfFirstLeg = i == 0 && j == 0;
           final isEndOfLastLeg = i == legs.length - 1 && j == stops.length - 1;
           
+          final lat = (stop['latitude'] as num).toDouble();
+          final lng = (stop['longitude'] as num).toDouble();
+          
           if (isStartOfFirstLeg || isEndOfLastLeg) {
             markers.add(Marker(
-              point: LatLng(stop['latitude'], stop['longitude']),
+              point: LatLng(lat, lng),
               width: 40, height: 40,
               alignment: Alignment.topCenter,
               child: Icon(
@@ -658,7 +687,7 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
           } else {
             // Intermediate stops
             markers.add(Marker(
-              point: LatLng(stop['latitude'], stop['longitude']),
+              point: LatLng(lat, lng),
               width: 12, height: 12,
               child: Container(
                 decoration: BoxDecoration(
