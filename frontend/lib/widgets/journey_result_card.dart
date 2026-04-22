@@ -54,35 +54,51 @@ class JourneyResultCard extends StatelessWidget {
                     children: legs.asMap().entries.map((entry) {
                       final i = entry.key;
                       final leg = entry.value;
-                      final color = Color(int.parse((leg['color'] ?? '#E31C23').replaceFirst('#', '0xFF')));
+                      
+                      Widget legWidget;
+                      if (leg['type'] == 'walk') {
+                        legWidget = Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white10,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: const Icon(Icons.directions_walk, color: Colors.white70, size: 14),
+                        );
+                      } else {
+                        final color = Color(int.parse((leg['color'] ?? '#E31C23').replaceFirst('#', '0xFF')));
+                        legWidget = Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: color.withOpacity(0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.directions_bus, color: color, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                leg['route_name'] != null && leg['route_name'].length > 15 
+                                  ? '${leg['route_name'].substring(0, 12)}...' 
+                                  : leg['route_name'] ?? 'Bus',
+                                style: TextStyle(
+                                  color: color, 
+                                  fontSize: 11, 
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
                       return Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: color.withOpacity(0.4)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.directions_bus, color: color, size: 14),
-                                const SizedBox(width: 6),
-                                Text(
-                                  leg['route_name'].length > 15 
-                                    ? '${leg['route_name'].substring(0, 12)}...' 
-                                    : leg['route_name'],
-                                  style: TextStyle(
-                                    color: color, 
-                                    fontSize: 11, 
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          legWidget,
                           if (i < legs.length - 1)
                             const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 4),

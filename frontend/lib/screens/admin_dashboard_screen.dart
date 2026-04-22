@@ -144,7 +144,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         width: 280,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.black, // Distinguish from stats
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
@@ -156,14 +156,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70, letterSpacing: 1.2)),
-                Icon(icon, color: Colors.white, size: 24),
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54, letterSpacing: 1.2)),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: Colors.red, size: 20),
+                ),
               ],
             ),
             const SizedBox(height: 24),
-            Text(subtitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(subtitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 12),
-            const Text('Configure Pricing →', style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600)),
+            Text('Configure Pricing →', style: TextStyle(fontSize: 13, color: Colors.green[700], fontWeight: FontWeight.w600)),
           ],
         ),
       ),

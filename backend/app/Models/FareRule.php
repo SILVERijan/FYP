@@ -13,7 +13,9 @@ class FareRule extends Model
         'min_km',
         'max_km',
         'fare',
-        'is_active'
+        'is_active',
+        'vehicle_type',
+        'route_id'
     ];
 
     protected $casts = [
@@ -21,5 +23,11 @@ class FareRule extends Model
         'min_km' => 'double',
         'max_km' => 'double',
         'fare' => 'double',
+        'route_id' => 'integer',
     ];
+
+    public function route()
+    {
+        return $this->belongsTo(Route::class);
+    }
 }

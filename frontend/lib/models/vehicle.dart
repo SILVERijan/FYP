@@ -21,9 +21,9 @@ class Vehicle {
     return Vehicle(
       id: json['id'],
       plateNumber: json['plate_number'],
-      latitude: json['current_lat'].toDouble(),
-      longitude: json['current_lng'].toDouble(),
-      status: json['status'],
+      latitude: (json['current_lat'] ?? 0).toDouble(),
+      longitude: (json['current_lng'] ?? 0).toDouble(),
+      status: json['status'] ?? 'Unknown',
       route: json['route'] != null ? TransportRoute.fromJson(json['route']) : null,
     );
   }

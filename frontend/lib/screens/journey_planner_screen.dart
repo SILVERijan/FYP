@@ -396,6 +396,10 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
   }
 
   Widget _buildLegSection(Map<String, dynamic> leg, bool isLastLeg) {
+    if (leg['type'] == 'walk') {
+      return _buildWalkInstruction(leg['distance_m'] ?? 0, leg['instruction'] ?? 'Walk');
+    }
+
     final color = Color(int.parse((leg['color'] ?? '#E31C23').replaceFirst('#', '0xFF')));
     final List states = leg['stops'] as List;
 
@@ -418,11 +422,11 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    leg['route_name'],
+                    leg['route_name'] ?? 'Bus',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
                   ),
                   Text(
-                    '${leg['distance_km']} km • ${leg['type']}',
+                    '${leg['distance_km']} km • ${leg['transport_type'] ?? 'bus'}',
                     style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11),
                   ),
                 ],
@@ -446,17 +450,15 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
             lineColor: color
           );
         }).toList(),
-        if (leg['walk_after_m'] != null && leg['walk_after_m'] > 0)
-          _buildWalkInstruction(leg['walk_after_m']),
         const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildWalkInstruction(int meters) {
+  Widget _buildWalkInstruction(int meters, String instruction) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      margin: const EdgeInsets.only(left: 20, top: 12, bottom: 12),
+      margin: const EdgeInsets.only(left: 20, top: 12, bottom: 24),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(12),
@@ -466,9 +468,11 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
         children: [
           const Icon(Icons.directions_walk, color: AppTheme.citymapperGreen, size: 16),
           const SizedBox(width: 12),
-          Text(
-            'Walk $meters meters to next stop',
-            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+          Expanded(
+            child: Text(
+              instruction,
+              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

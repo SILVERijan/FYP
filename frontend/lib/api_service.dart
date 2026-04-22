@@ -343,7 +343,13 @@ class ApiService {
     final token = await getToken();
     final response = await http.get(Uri.parse('$baseUrl$endpoint'), headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'});
     if (response.statusCode == 200) {
-      return json.decode(response.body)['data'];
+      final decoded = json.decode(response.body);
+      if (decoded is Map && decoded.containsKey('data')) {
+        return decoded['data'];
+      } else if (decoded is List) {
+        return decoded;
+      }
+      return [];
     }
     throw Exception('Failed to load list: ${response.body}');
   }

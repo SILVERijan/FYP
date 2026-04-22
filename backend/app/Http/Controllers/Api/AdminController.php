@@ -205,7 +205,9 @@ class AdminController extends Controller
     // === FARE RULES ===
     public function getFareRules()
     {
-        return response()->json(FareRule::orderBy('min_km')->get());
+        return response()->json([
+            'data' => FareRule::with('route')->orderBy('min_km')->get()
+        ]);
     }
 
     public function createFareRule(Request $request)
@@ -214,10 +216,13 @@ class AdminController extends Controller
             'min_km' => 'required|numeric',
             'max_km' => 'nullable|numeric',
             'fare' => 'required|numeric',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'vehicle_type' => 'nullable|string|max:255',
+            'route_id' => 'nullable|exists:routes,id',
         ]);
 
         $rule = FareRule::create($validated);
+        $rule->load('route');
         return response()->json(['message' => 'Fare rule created successfully', 'data' => $rule], 201);
     }
 
@@ -228,10 +233,13 @@ class AdminController extends Controller
             'min_km' => 'sometimes|numeric',
             'max_km' => 'nullable|numeric',
             'fare' => 'sometimes|numeric',
-            'is_active' => 'sometimes|boolean'
+            'is_active' => 'sometimes|boolean',
+            'vehicle_type' => 'nullable|string|max:255',
+            'route_id' => 'nullable|exists:routes,id',
         ]);
 
         $rule->update($validated);
+        $rule->load('route');
         return response()->json(['message' => 'Fare rule updated successfully', 'data' => $rule]);
     }
 
